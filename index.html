@@ -1,1 +1,4063 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Attendance</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+      :root {
+        --bg: #f4f6f8;
+        --surface: #ffffff;
+        --text: #1f2937;
+        --muted: #6b7280;
+        --border: #d1d5db;
+        --neutral: #e5e7eb;
+        --present: #16a34a;
+        --absent: #dc2626;
+        --bar: #ffffff;
+        --accent: #365233;
+        --accent-dark: #2b4029;
+        --soft: #eaf3ea;
+      }
 
+      * {
+        box-sizing: border-box;
+      }
+
+      :focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: linear-gradient(160deg, #eef5ee 0%, var(--bg) 45%, #eef6f0 100%);
+        font-family: 'Inter', "Segoe UI", Avenir Next, Arial, sans-serif;
+        color: var(--text);
+        min-height: 100%;
+      }
+
+      body {
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-y;
+      }
+
+      .app {
+        max-width: 900px;
+        margin: 0 auto;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        padding-bottom: calc(var(--bottom-bar-height, 116px) + env(safe-area-inset-bottom));
+      }
+
+      .top {
+        position: static;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(6px);
+        border-bottom: 1px solid #e5e7eb;
+        padding: 14px 14px 12px;
+      }
+
+      .title {
+        margin: 0;
+        font-size: 24px;
+        line-height: 1.2;
+        font-weight: 800;
+        letter-spacing: 0.2px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+      }
+
+      .brand-logo {
+        height: 28px;
+        width: auto;
+        flex: 0 0 auto;
+        display: block;
+      }
+
+      .top-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .top-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .view-toggle-btn {
+        border: none;
+        border-radius: 12px;
+        background: #334155;
+        color: #fff;
+        padding: 10px 14px;
+        font-size: 16px;
+        font-weight: 800;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background 0.15s ease, transform 0.08s ease;
+      }
+
+      .view-toggle-btn:hover {
+        background: #3f4f61;
+      }
+
+      .view-toggle-btn:active {
+        transform: scale(0.97);
+      }
+
+      .view-toggle-btn.active {
+        background: var(--accent);
+      }
+
+      .controls {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: 1fr 1fr;
+        margin-top: 12px;
+      }
+
+      .field-full {
+        grid-column: 1 / -1;
+      }
+
+      .attendance-instructions {
+        grid-column: 1 / -1;
+        background: rgba(54, 82, 51, 0.08);
+        border: 1px solid rgba(54, 82, 51, 0.25);
+        border-radius: 12px;
+        padding: 10px 12px;
+        font-size: 13px;
+        line-height: 1.45;
+        color: #0f4c47;
+      }
+
+      .review-banner {
+        margin: 10px 0 0;
+        background: rgba(180, 83, 9, 0.1);
+        border: 1px solid rgba(180, 83, 9, 0.35);
+        border-radius: 12px;
+        padding: 10px 12px;
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 1.45;
+        color: #9a3412;
+      }
+
+      .session-summary {
+        margin-top: 12px;
+        display: grid;
+        gap: 8px;
+      }
+
+      .review-range-hint {
+        margin: 10px 0 0;
+        font-size: 12px;
+        color: #64748b;
+        line-height: 1.4;
+      }
+
+      .session-summary-header {
+        font-size: 13px;
+        font-weight: 800;
+        color: #475569;
+        margin-bottom: 2px;
+      }
+
+      .session-summary-group {
+        border-left: 4px solid #cbd5e1;
+        background: #f8fafc;
+        border-radius: 8px;
+        padding: 8px 10px;
+      }
+
+      .session-summary-group.present {
+        border-left-color: #16a34a;
+      }
+
+      .session-summary-group.absent {
+        border-left-color: #dc2626;
+      }
+
+      .session-summary-group.late {
+        border-left-color: #d97706;
+      }
+
+      .session-summary-group.unmarked {
+        border-left-color: #94a3b8;
+      }
+
+      .session-summary-title {
+        font-size: 13px;
+        font-weight: 800;
+        color: #1e293b;
+        margin-bottom: 2px;
+      }
+
+      .session-summary-names {
+        font-size: 13px;
+        color: #334155;
+        line-height: 1.5;
+      }
+
+      .loading-indicator {
+        margin-top: 8px;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--present);
+      }
+
+      .field label {
+        display: block;
+        font-size: 13px;
+        font-weight: 700;
+        margin-bottom: 4px;
+        color: var(--muted);
+      }
+
+      .field select,
+      .field input {
+        width: 100%;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        font-size: 18px;
+        border-radius: 12px;
+        padding: 10px 12px;
+        outline: none;
+      }
+
+      .field select:focus,
+      .field input:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(54, 82, 51, 0.15);
+      }
+
+      .add-guest-row {
+        margin-top: 10px;
+      }
+
+      .add-guest-btn {
+        border: 1px dashed var(--accent);
+        border-radius: 12px;
+        background: rgba(54, 82, 51, 0.08);
+        color: var(--accent);
+        padding: 8px 14px;
+        font-size: 14px;
+        font-weight: 800;
+        cursor: pointer;
+        transition: background 0.15s ease;
+      }
+
+      .add-guest-btn:hover {
+        background: rgba(54, 82, 51, 0.16);
+      }
+
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.5);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        z-index: 50;
+      }
+
+      .modal-overlay.show {
+        display: flex;
+      }
+
+      .modal-box {
+        background: var(--surface);
+        border-radius: 16px;
+        padding: 18px;
+        width: 100%;
+        max-width: 360px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+      }
+
+      .modal-box h3 {
+        margin: 0 0 14px;
+        font-size: 18px;
+        font-weight: 800;
+      }
+
+      .modal-box .field {
+        margin-bottom: 12px;
+      }
+
+      .modal-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 6px;
+      }
+
+      .modal-actions button {
+        flex: 1;
+      }
+
+      .main {
+        padding: 12px 14px 10px;
+        overflow: visible;
+      }
+
+      .student-search {
+        margin: 12px 0;
+      }
+
+      .student-search label {
+        display: block;
+        font-size: 13px;
+        font-weight: 800;
+        color: #64748b;
+        margin-bottom: 5px;
+      }
+
+      .student-search input {
+        width: 100%;
+        border: 1px solid var(--border);
+        background: #fff;
+        border-radius: 12px;
+        padding: 11px 13px;
+        font-size: 18px;
+        outline: none;
+      }
+
+      .student-search input:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(54, 82, 51, 0.15);
+      }
+
+      .search-result-hint {
+        min-height: 18px;
+        margin-top: 5px;
+        font-size: 12px;
+        color: #64748b;
+        font-weight: 700;
+      }
+
+      .student-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .student-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .student-row .pill {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .remove-student-btn {
+        flex: 0 0 auto;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: 1px solid rgba(153, 27, 27, 0.3);
+        background: rgba(153, 27, 27, 0.08);
+        color: #991b1b;
+        font-size: 18px;
+        font-weight: 800;
+        line-height: 1;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .remove-student-btn:active {
+        transform: scale(0.95);
+      }
+
+      .pill {
+        width: 100%;
+        min-height: 56px;
+        border: none;
+        border-radius: 999px;
+        font-size: 20px;
+        font-weight: 700;
+        text-align: left;
+        padding: 12px 20px;
+        color: #111827;
+        background: var(--neutral);
+        cursor: pointer;
+        transition: transform 0.05s ease, filter 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .pill-name {
+        display: block;
+        min-width: 0;
+      }
+
+      .pill-status {
+        flex: 0 0 auto;
+        font-size: 0.62em;
+        font-weight: 800;
+        letter-spacing: 0.2px;
+        opacity: 0.9;
+      }
+
+      .pill:active {
+        transform: scale(0.99);
+      }
+
+      .pill.present {
+        background: #bbf7d0;
+        color: #14532d;
+      }
+
+      .pill.absent {
+        background: #fecaca;
+        color: #7f1d1d;
+      }
+
+      .pill.late {
+        background: #16a34a;
+        color: #ecfdf5;
+      }
+
+      .empty {
+        margin-top: 10px;
+        font-size: 18px;
+        color: var(--muted);
+      }
+
+      .footer-note {
+        margin: 18px 0 8px;
+        text-align: center;
+        font-size: 12px;
+        color: #6b7280;
+      }
+
+      .footer-note a {
+        color: var(--accent);
+        text-decoration: none;
+        font-weight: 700;
+      }
+
+      .footer-note a:hover {
+        text-decoration: underline;
+      }
+
+
+      .qr-overlay { position:fixed; inset:0; background:rgba(15,23,42,.62); display:none; align-items:center; justify-content:center; padding:14px; z-index:60; }
+      .qr-overlay.show { display:flex; }
+      .qr-box { width:100%; max-width:820px; max-height:92vh; overflow:auto; background:#fff; border-radius:18px; padding:18px; box-shadow:0 20px 60px rgba(0,0,0,.28); }
+      .qr-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+      .qr-title { margin:0; font-size:22px; font-weight:900; }
+      .qr-actions { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+      .qr-actions button { border:0; border-radius:11px; padding:10px 14px; font-weight:800; cursor:pointer; background:var(--accent); color:#fff; }
+      .qr-actions button.secondary { background:#475569; }
+      .qr-scanner { min-height:260px; border:1px solid #dbe2ea; border-radius:14px; overflow:hidden; background:#f8fafc; }
+      .qr-status { margin:10px 0; font-size:14px; font-weight:800; color:#475569; }
+      .qr-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:12px; }
+      .qr-card { border:1px solid #dbe2ea; border-radius:14px; padding:12px; text-align:center; background:#fff; break-inside:avoid; }
+      .qr-card .qr-image { width:128px; height:128px; margin:0 auto 8px; display:flex; align-items:center; justify-content:center; }
+      .qr-card .qr-name { font-size:14px; font-weight:900; line-height:1.25; }
+      .qr-card .qr-community { font-size:11px; color:#64748b; margin-top:3px; }
+      .qr-card-actions { display:flex; gap:5px; justify-content:center; flex-wrap:wrap; margin-top:9px; }
+      .qr-card-actions button { border:0; border-radius:8px; padding:6px 8px; font-size:11px; font-weight:800; cursor:pointer; background:var(--accent); color:#fff; }
+      .qr-card-actions button.secondary { background:#475569; }
+      .qr-directory-tools { display:grid; grid-template-columns:minmax(160px,220px) 1fr; gap:10px; margin:12px 0; }
+      .qr-directory-tools label { display:flex; flex-direction:column; gap:5px; font-size:12px; font-weight:800; color:#475569; }
+      .qr-directory-tools select, .qr-directory-tools input { box-sizing:border-box; width:100%; padding:9px 10px; border:1px solid #cbd5e1; border-radius:9px; background:#fff; font-size:13px; }
+      .qr-member-detail { border:1px solid #dbe2ea; border-radius:14px; padding:18px; margin:12px 0 16px; text-align:center; background:#f8fafc; }
+      .qr-detail-name { font-size:20px; font-weight:900; }
+      .qr-detail-image { width:260px; height:260px; margin:12px auto; display:flex; align-items:center; justify-content:center; background:#fff; }
+      @media(max-width:650px){ .qr-directory-tools{grid-template-columns:1fr;} .qr-grid{grid-template-columns:repeat(2,minmax(0,1fr));} .qr-card-actions button{flex:1;} }
+      .qr-mode { display:none; }
+      .qr-mode.active { display:block; }
+      @media print {
+        body * { visibility:hidden !important; }
+        #qrOverlay, #qrOverlay * { visibility:visible !important; }
+        #qrOverlay { position:static; display:block; background:#fff; padding:0; }
+        .qr-box { max-width:none; max-height:none; box-shadow:none; padding:0; }
+        .qr-head, .qr-actions, .qr-status, #qrScannerMode { display:none !important; }
+        #qrCodesMode { display:block !important; }
+        .qr-grid { grid-template-columns:repeat(3,1fr); gap:10px; }
+        .qr-card { min-height:190px; }
+      }
+
+      .email-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin: 12px 0 14px;
+      }
+
+      .email-actions input {
+        flex: 0 1 320px;
+        width: 320px;
+        min-width: 180px;
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        padding: 8px 10px;
+        font-size: 14px;
+        font-weight: 700;
+        background: #fff;
+      }
+
+      .email-btn {
+        border: none;
+        border-radius: 10px;
+        background: var(--accent);
+        color: #fff;
+        padding: 9px 12px;
+        font-size: 14px;
+        font-weight: 800;
+        cursor: pointer;
+        transition: background 0.15s ease;
+      }
+
+      .email-btn:hover {
+        background: var(--accent-dark);
+      }
+
+      .stats-view {
+        display: none;
+      }
+
+      .stats-view.active {
+        display: block;
+      }
+
+      .late-view {
+        display: none;
+      }
+
+      .late-view.active {
+        display: block;
+      }
+
+      .stats-sub {
+        margin: 0 0 12px;
+        font-size: 14px;
+        color: #64748b;
+        font-weight: 700;
+      }
+
+      .stats-filters {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+
+      .stats-filters label {
+        font-size: 13px;
+        font-weight: 800;
+        color: #475569;
+      }
+
+      .stats-filters select,
+      .stats-filters input {
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        padding: 8px 10px;
+        font-size: 14px;
+        font-weight: 700;
+        background: #fff;
+      }
+
+      .filter-clear-btn {
+        border: 1px solid #cbd5e1;
+        background: #fff;
+        color: #334155;
+        border-radius: 10px;
+        padding: 8px 12px;
+        font-size: 14px;
+        font-weight: 800;
+        cursor: pointer;
+        transition: border-color 0.15s ease, background 0.15s ease;
+      }
+
+      .filter-clear-btn:hover {
+        border-color: #94a3b8;
+      }
+
+      .quick-range {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+      }
+
+      .range-btn {
+        border: 1px solid #cbd5e1;
+        background: #fff;
+        color: #334155;
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+        transition: border-color 0.15s ease, background 0.15s ease;
+      }
+
+      .range-btn:hover {
+        border-color: var(--accent);
+      }
+
+      .range-btn.active {
+        border-color: var(--accent);
+        background: var(--soft);
+        color: var(--accent-dark);
+      }
+
+      .late-view .range-btn {
+        font-size: 14px;
+        padding: 8px 14px;
+      }
+
+      .stats-view .range-btn {
+        font-size: 14px;
+        padding: 8px 14px;
+      }
+
+      .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+        margin-bottom: 14px;
+      }
+
+      .kpi-card {
+        background: linear-gradient(165deg, #ffffff 0%, #f8fafc 100%);
+        border: 1px solid #dbe2ea;
+        border-radius: 14px;
+        padding: 12px;
+        box-shadow: 0 1px 2px rgba(16, 24, 18, 0.04);
+      }
+
+      .kpi-label {
+        font-size: 12px;
+        color: #64748b;
+        font-weight: 700;
+      }
+
+      .kpi-value {
+        margin-top: 4px;
+        font-size: 24px;
+        font-weight: 900;
+        color: #0f172a;
+      }
+
+      .stats-section {
+        background: #ffffff;
+        border: 1px solid #dbe2ea;
+        border-radius: 14px;
+        padding: 12px;
+        margin-bottom: 12px;
+        box-shadow: 0 1px 2px rgba(16, 24, 18, 0.04);
+      }
+
+      .stats-title {
+        margin: 0 0 10px;
+        font-size: 15px;
+        font-weight: 800;
+        color: #0f172a;
+      }
+
+      .trend-bars {
+        display: grid;
+        gap: 6px;
+      }
+
+      .trend-row {
+        display: grid;
+        grid-template-columns: 58px 1fr 54px;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .trend-label {
+        font-size: 12px;
+        color: #64748b;
+        font-weight: 700;
+      }
+
+      .trend-bar {
+        position: relative;
+        height: 10px;
+        background: #e5e7eb;
+        border-radius: 999px;
+        overflow: hidden;
+      }
+
+      .trend-fill {
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        background: linear-gradient(90deg, #16a34a, #22c55e);
+      }
+
+      .trend-rate {
+        font-size: 12px;
+        text-align: right;
+        color: #334155;
+        font-weight: 800;
+      }
+
+      .stats-table-wrap {
+        overflow: visible;
+      }
+
+      @media (min-width: 920px) {
+        .top {
+          position: sticky;
+          top: 0;
+          z-index: 10;
+        }
+
+        .main {
+          overflow: auto;
+        }
+
+        .stats-table-wrap {
+          overflow: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+      }
+
+      @media (max-width: 919px) {
+        .top,
+        .main,
+        .stats-table-wrap {
+          position: static !important;
+          max-height: none !important;
+          height: auto !important;
+          overflow: visible !important;
+        }
+      }
+
+      .stats-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+
+      .stats-table th,
+      .stats-table td {
+        padding: 8px 6px;
+        border-bottom: 1px solid #e2e8f0;
+        text-align: left;
+        white-space: nowrap;
+      }
+
+      .stats-table th {
+        color: #64748b;
+        font-weight: 800;
+        font-size: 12px;
+      }
+
+      .band-pill {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 3px 8px;
+        font-size: 11px;
+        font-weight: 800;
+      }
+
+      .band-atRisk {
+        background: #fee2e2;
+        color: #991b1b;
+      }
+
+      .band-warning {
+        background: #fef3c7;
+        color: #92400e;
+      }
+
+      .band-good {
+        background: #dcfce7;
+        color: #166534;
+      }
+
+      .band-insufficient {
+        background: #e2e8f0;
+        color: #334155;
+      }
+
+      .bottom {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 20;
+        border-top: 1px solid #e5e7eb;
+        background: rgba(255, 255, 255, 0.97);
+        backdrop-filter: blur(8px);
+      }
+
+      .bottom-inner {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .summary {
+        flex: 1;
+        font-size: 17px;
+        font-weight: 700;
+        line-height: 1.3;
+      }
+
+      .save-btn {
+        border: none;
+        border-radius: 14px;
+        background: var(--accent);
+        color: #fff;
+        padding: 13px 20px;
+        font-size: 18px;
+        font-weight: 800;
+        min-width: 130px;
+        cursor: pointer;
+        transition: background 0.15s ease, transform 0.08s ease;
+      }
+
+      .save-btn:hover {
+        background: var(--accent-dark);
+      }
+
+      .save-btn:active {
+        transform: scale(0.98);
+      }
+
+      .mark-all-btn {
+        border: none;
+        border-radius: 14px;
+        background: #334155;
+        color: #fff;
+        padding: 13px 18px;
+        font-size: 18px;
+        font-weight: 800;
+        min-width: 150px;
+        cursor: pointer;
+        transition: background 0.15s ease, transform 0.08s ease;
+      }
+
+      .mark-all-btn:hover {
+        background: #3f4f61;
+      }
+
+      .mark-all-btn:active,
+      .clear-all-btn:active {
+        transform: scale(0.98);
+      }
+
+      .clear-all-btn {
+        border: none;
+        border-radius: 14px;
+        background: #64748b;
+        color: #fff;
+        padding: 13px 18px;
+        font-size: 18px;
+        font-weight: 800;
+        min-width: 150px;
+        cursor: pointer;
+        transition: background 0.15s ease, transform 0.08s ease;
+      }
+
+      .clear-all-btn:hover {
+        background: #56637a;
+      }
+
+      .save-btn:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+
+      .toast-wrap {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 86px;
+        display: flex;
+        justify-content: center;
+        pointer-events: none;
+        z-index: 30;
+      }
+
+      .toast {
+        pointer-events: auto;
+        background: #111827;
+        color: #fff;
+        padding: 10px 14px;
+        border-radius: 999px;
+        font-size: 15px;
+        opacity: 0;
+        transform: translateY(10px);
+        transition: all 0.2s ease;
+      }
+
+      .toast.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      @media (max-width: 680px) {
+        .top-head {
+          align-items: flex-start;
+        }
+        .view-toggle-btn {
+          font-size: 28px;
+          padding: 12px 18px;
+          border-radius: 14px;
+        }
+        .controls {
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+          gap: 8px;
+        }
+        .loading-indicator {
+          font-size: 14px;
+        }
+        .field {
+          min-width: 0;
+        }
+        .title {
+          font-size: 36px;
+        }
+        .brand-logo {
+          height: 42px;
+        }
+        .field label {
+          font-size: 32px;
+          margin-bottom: 4px;
+        }
+        .field select,
+        .field input {
+          font-size: 40px;
+          padding: 12px 14px;
+          border-radius: 10px;
+          min-height: 82px;
+        }
+        .field input[type="date"] {
+          font-size: 40px;
+          padding-right: 8px;
+          max-width: 100%;
+        }
+        .pill {
+          min-height: 92px;
+          font-size: 40px;
+          padding: 18px 24px;
+        }
+        .summary {
+          font-size: 40px;
+        }
+        .save-btn {
+          font-size: 45px;
+          min-width: 240px;
+          padding: 20px 26px;
+          border-radius: 18px;
+        }
+        .mark-all-btn {
+          font-size: 36px;
+          min-width: 260px;
+          padding: 20px 22px;
+          border-radius: 18px;
+        }
+        .bottom-inner {
+          gap: 16px;
+          padding: 16px 14px calc(16px + env(safe-area-inset-bottom));
+        }
+        .toast {
+          font-size: 38px;
+          padding: 16px 24px;
+        }
+        .kpi-grid {
+          grid-template-columns: 1fr 1fr;
+          gap: 8px;
+        }
+        .kpi-card {
+          padding: 10px;
+        }
+        .kpi-label {
+          font-size: 14px;
+        }
+        .kpi-value {
+          font-size: 28px;
+        }
+        .stats-title {
+          font-size: 24px;
+        }
+        .stats-sub {
+          font-size: 16px;
+        }
+        .stats-filters label {
+          font-size: 18px;
+        }
+        .stats-filters select,
+        .stats-filters input {
+          font-size: 18px;
+          padding: 10px 12px;
+        }
+        .range-btn {
+          font-size: 16px;
+          padding: 8px 12px;
+        }
+        .email-actions input {
+          font-size: 18px;
+          width: 220px;
+          min-height: 58px;
+          padding: 10px 12px;
+        }
+        .email-btn {
+          font-size: 18px;
+          min-height: 58px;
+          padding: 10px 14px;
+        }
+        .late-view .range-btn {
+          font-size: 20px;
+          padding: 10px 16px;
+        }
+        .stats-view .range-btn {
+          font-size: 20px;
+          padding: 10px 16px;
+        }
+        .filter-clear-btn {
+          font-size: 18px;
+          padding: 10px 12px;
+          min-height: 58px;
+        }
+        .stats-table {
+          font-size: 18px;
+        }
+        .stats-table th {
+          font-size: 16px;
+        }
+        .band-pill {
+          font-size: 14px;
+        }
+
+        .stats-view .stats-sub {
+          font-size: 22px;
+          line-height: 1.35;
+        }
+        .late-view .stats-sub {
+          font-size: 22px;
+          line-height: 1.35;
+        }
+
+        .stats-view .stats-filters label {
+          font-size: 24px;
+        }
+        .late-view .stats-filters label {
+          font-size: 24px;
+        }
+
+        .stats-view .stats-filters select,
+        .stats-view .stats-filters input {
+          font-size: 24px;
+          min-height: 58px;
+          padding: 10px 14px;
+          border-radius: 12px;
+        }
+        .late-view .stats-filters select,
+        .late-view .stats-filters input {
+          font-size: 24px;
+          min-height: 58px;
+          padding: 10px 14px;
+          border-radius: 12px;
+        }
+
+        .stats-view .kpi-grid {
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+        }
+        .late-view .kpi-grid {
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+        }
+
+        .stats-view .kpi-card {
+          padding: 14px;
+          border-radius: 16px;
+        }
+        .late-view .kpi-card {
+          padding: 14px;
+          border-radius: 16px;
+        }
+
+        .stats-view .kpi-label {
+          font-size: 18px;
+        }
+        .late-view .kpi-label {
+          font-size: 18px;
+        }
+
+        .stats-view .kpi-value {
+          font-size: 42px;
+          line-height: 1.05;
+        }
+        .late-view .kpi-value {
+          font-size: 42px;
+          line-height: 1.05;
+        }
+
+        .stats-view .stats-section {
+          padding: 14px;
+          border-radius: 16px;
+        }
+        .late-view .stats-section {
+          padding: 14px;
+          border-radius: 16px;
+        }
+
+        .stats-view .stats-title {
+          font-size: 30px;
+          margin-bottom: 12px;
+        }
+        .late-view .stats-title {
+          font-size: 30px;
+          margin-bottom: 12px;
+        }
+
+        .stats-view .trend-row {
+          grid-template-columns: 86px 1fr 76px;
+          gap: 10px;
+        }
+        .late-view .trend-row {
+          grid-template-columns: 86px 1fr 76px;
+          gap: 10px;
+        }
+
+        .stats-view .trend-label,
+        .stats-view .trend-rate {
+          font-size: 16px;
+        }
+        .late-view .trend-label,
+        .late-view .trend-rate {
+          font-size: 16px;
+        }
+
+        .stats-view .trend-bar {
+          height: 14px;
+        }
+        .late-view .trend-bar {
+          height: 14px;
+        }
+
+        .stats-view .stats-table {
+          font-size: 22px;
+        }
+        .late-view .stats-table {
+          font-size: 22px;
+        }
+
+        .stats-view .stats-table th {
+          font-size: 18px;
+          padding: 10px 8px;
+        }
+        .late-view .stats-table th {
+          font-size: 18px;
+          padding: 10px 8px;
+        }
+
+        .stats-view .stats-table td {
+          padding: 12px 8px;
+        }
+        .late-view .stats-table td {
+          padding: 12px 8px;
+        }
+
+        .stats-view .band-pill {
+          font-size: 16px;
+          padding: 5px 10px;
+        }
+        .late-view .band-pill {
+          font-size: 16px;
+          padding: 5px 10px;
+        }
+      }
+
+      @media (min-width: 681px) {
+        .student-list {
+          gap: 8px;
+        }
+        .pill {
+          min-height: 50px;
+          font-size: 18px;
+          padding: 10px 18px;
+        }
+      }
+
+      body.mobile-ui .controls {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+        gap: 8px !important;
+      }
+
+      body.mobile-ui .loading-indicator {
+        font-size: 14px !important;
+      }
+
+      body.mobile-ui .field {
+        min-width: 0 !important;
+      }
+
+      body.mobile-ui .title {
+        font-size: 36px !important;
+      }
+
+      body.mobile-ui .brand-logo {
+        height: 42px !important;
+      }
+
+      body.mobile-ui .view-toggle-btn {
+        font-size: 28px !important;
+        padding: 12px 18px !important;
+        border-radius: 14px !important;
+      }
+
+      body.mobile-ui .field label {
+        font-size: 32px !important;
+        margin-bottom: 4px !important;
+      }
+
+      body.mobile-ui .field select,
+      body.mobile-ui .field input {
+        font-size: 40px !important;
+        padding: 12px 14px !important;
+        border-radius: 10px !important;
+        min-height: 82px !important;
+      }
+
+      body.mobile-ui .field input[type="date"] {
+        font-size: 40px !important;
+        padding-right: 8px !important;
+        max-width: 100% !important;
+      }
+
+      body.mobile-ui .pill {
+        min-height: 110px !important;
+        font-size: 40px !important;
+        padding: 22px 24px !important;
+      }
+
+      body.mobile-ui .remove-student-btn {
+        width: 60px !important;
+        height: 60px !important;
+        font-size: 28px !important;
+      }
+
+      body.mobile-ui .summary {
+        font-size: 40px !important;
+      }
+
+      body.mobile-ui .save-btn {
+        font-size: 45px !important;
+        min-width: 240px !important;
+        padding: 20px 26px !important;
+        border-radius: 18px !important;
+      }
+
+      body.mobile-ui .mark-all-btn {
+        font-size: 36px !important;
+        min-width: 260px !important;
+        padding: 20px 22px !important;
+        border-radius: 18px !important;
+      }
+
+
+      body.mobile-ui .bottom-inner {
+        gap: 16px !important;
+        padding: 16px 14px calc(16px + env(safe-area-inset-bottom)) !important;
+      }
+
+      body.mobile-ui .toast {
+        font-size: 38px !important;
+        padding: 16px 24px !important;
+      }
+
+      body.mobile-ui .kpi-grid {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 8px !important;
+      }
+
+      body.mobile-ui .kpi-label {
+        font-size: 14px !important;
+      }
+
+      body.mobile-ui .kpi-value {
+        font-size: 28px !important;
+      }
+
+      body.mobile-ui .stats-title {
+        font-size: 24px !important;
+      }
+
+      body.mobile-ui .stats-sub {
+        font-size: 16px !important;
+      }
+
+      body.mobile-ui .stats-filters label {
+        font-size: 18px !important;
+      }
+
+      body.mobile-ui .stats-filters select,
+      body.mobile-ui .stats-filters input {
+        font-size: 18px !important;
+        padding: 10px 12px !important;
+      }
+
+      body.mobile-ui .range-btn {
+        font-size: 16px !important;
+        padding: 8px 12px !important;
+      }
+      body.mobile-ui .email-actions input {
+        font-size: 18px !important;
+        width: 220px !important;
+        min-height: 58px !important;
+        padding: 10px 12px !important;
+      }
+      body.mobile-ui .email-btn {
+        font-size: 18px !important;
+        min-height: 58px !important;
+        padding: 10px 14px !important;
+      }
+
+      body.mobile-ui .late-view .range-btn {
+        font-size: 20px !important;
+        padding: 10px 16px !important;
+      }
+
+      body.mobile-ui .stats-view .range-btn {
+        font-size: 20px !important;
+        padding: 10px 16px !important;
+      }
+
+      body.mobile-ui .filter-clear-btn {
+        font-size: 18px !important;
+        padding: 10px 12px !important;
+        min-height: 58px !important;
+      }
+
+      body.mobile-ui .stats-table {
+        font-size: 18px !important;
+      }
+
+      body.mobile-ui .stats-table th {
+        font-size: 16px !important;
+      }
+
+      body.mobile-ui .stats-view .stats-sub {
+        font-size: 22px !important;
+        line-height: 1.35 !important;
+      }
+      body.mobile-ui .late-view .stats-sub {
+        font-size: 22px !important;
+        line-height: 1.35 !important;
+      }
+
+      body.mobile-ui .stats-view .stats-filters label {
+        font-size: 24px !important;
+      }
+      body.mobile-ui .late-view .stats-filters label {
+        font-size: 24px !important;
+      }
+
+      body.mobile-ui .stats-view .stats-filters select,
+      body.mobile-ui .stats-view .stats-filters input {
+        font-size: 24px !important;
+        min-height: 58px !important;
+        padding: 10px 14px !important;
+        border-radius: 12px !important;
+      }
+      body.mobile-ui .late-view .stats-filters select,
+      body.mobile-ui .late-view .stats-filters input {
+        font-size: 24px !important;
+        min-height: 58px !important;
+        padding: 10px 14px !important;
+        border-radius: 12px !important;
+      }
+
+      body.mobile-ui .stats-view .kpi-grid {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 10px !important;
+      }
+      body.mobile-ui .late-view .kpi-grid {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 10px !important;
+      }
+
+      body.mobile-ui .stats-view .kpi-card {
+        padding: 14px !important;
+        border-radius: 16px !important;
+      }
+      body.mobile-ui .late-view .kpi-card {
+        padding: 14px !important;
+        border-radius: 16px !important;
+      }
+
+      body.mobile-ui .stats-view .kpi-label {
+        font-size: 18px !important;
+      }
+      body.mobile-ui .late-view .kpi-label {
+        font-size: 18px !important;
+      }
+
+      body.mobile-ui .stats-view .kpi-value {
+        font-size: 42px !important;
+        line-height: 1.05 !important;
+      }
+      body.mobile-ui .late-view .kpi-value {
+        font-size: 42px !important;
+        line-height: 1.05 !important;
+      }
+
+      body.mobile-ui .stats-view .stats-section {
+        padding: 14px !important;
+        border-radius: 16px !important;
+      }
+      body.mobile-ui .late-view .stats-section {
+        padding: 14px !important;
+        border-radius: 16px !important;
+      }
+
+      body.mobile-ui .stats-view .stats-title {
+        font-size: 30px !important;
+        margin-bottom: 12px !important;
+      }
+      body.mobile-ui .late-view .stats-title {
+        font-size: 30px !important;
+        margin-bottom: 12px !important;
+      }
+
+      body.mobile-ui .stats-view .trend-row {
+        grid-template-columns: 86px 1fr 76px !important;
+        gap: 10px !important;
+      }
+      body.mobile-ui .late-view .trend-row {
+        grid-template-columns: 86px 1fr 76px !important;
+        gap: 10px !important;
+      }
+
+      body.mobile-ui .stats-view .trend-label,
+      body.mobile-ui .stats-view .trend-rate {
+        font-size: 16px !important;
+      }
+      body.mobile-ui .late-view .trend-label,
+      body.mobile-ui .late-view .trend-rate {
+        font-size: 16px !important;
+      }
+
+      body.mobile-ui .stats-view .trend-bar {
+        height: 14px !important;
+      }
+      body.mobile-ui .late-view .trend-bar {
+        height: 14px !important;
+      }
+
+      body.mobile-ui .stats-view .stats-table {
+        font-size: 22px !important;
+      }
+      body.mobile-ui .late-view .stats-table {
+        font-size: 22px !important;
+      }
+
+      body.mobile-ui .stats-view .stats-table th {
+        font-size: 18px !important;
+        padding: 10px 8px !important;
+      }
+      body.mobile-ui .late-view .stats-table th {
+        font-size: 18px !important;
+        padding: 10px 8px !important;
+      }
+
+      body.mobile-ui .stats-view .stats-table td {
+        padding: 12px 8px !important;
+      }
+      body.mobile-ui .late-view .stats-table td {
+        padding: 12px 8px !important;
+      }
+
+      body.mobile-ui .stats-view .band-pill {
+        font-size: 16px !important;
+        padding: 5px 10px !important;
+      }
+      body.mobile-ui .late-view .band-pill {
+        font-size: 16px !important;
+        padding: 5px 10px !important;
+      }
+
+      @media (max-width: 680px) {
+        .top,
+        body.mobile-ui .top {
+          padding: 10px 12px 10px !important;
+        }
+        .top-head,
+        body.mobile-ui .top-head {
+          display: block !important;
+        }
+        .title,
+        body.mobile-ui .title {
+          font-size: 24px !important;
+          line-height: 1.15 !important;
+        }
+        .brand-logo,
+        body.mobile-ui .brand-logo {
+          height: 26px !important;
+        }
+        .top-actions,
+        body.mobile-ui .top-actions {
+          margin-top: 8px !important;
+          display: grid !important;
+          grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+          gap: 8px !important;
+        }
+        .view-toggle-btn,
+        body.mobile-ui .view-toggle-btn {
+          width: 100% !important;
+          font-size: 15px !important;
+          padding: 10px 8px !important;
+          border-radius: 12px !important;
+        }
+        .controls,
+        body.mobile-ui .controls {
+          grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr) !important;
+          gap: 8px !important;
+        }
+        .field label,
+        body.mobile-ui .field label {
+          font-size: 14px !important;
+        }
+        .field select,
+        .field input,
+        body.mobile-ui .field select,
+        body.mobile-ui .field input {
+          font-size: 16px !important;
+          padding: 8px 10px !important;
+          border-radius: 10px !important;
+          min-height: 50px !important;
+        }
+        .field input[type="date"],
+        body.mobile-ui .field input[type="date"] {
+          font-size: 16px !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+          padding-right: 6px !important;
+          font-variant-numeric: tabular-nums;
+        }
+        #dateInput,
+        body.mobile-ui #dateInput {
+          min-inline-size: 0 !important;
+          font-size: 14px !important;
+          letter-spacing: -0.1px;
+        }
+        #dateInput::-webkit-datetime-edit,
+        body.mobile-ui #dateInput::-webkit-datetime-edit {
+          font-size: 14px;
+        }
+        #dateInput::-webkit-date-and-time-value,
+        body.mobile-ui #dateInput::-webkit-date-and-time-value {
+          min-height: 1.2em;
+          text-align: left;
+        }
+        #dateInput::-webkit-calendar-picker-indicator,
+        body.mobile-ui #dateInput::-webkit-calendar-picker-indicator {
+          margin-left: 2px;
+        }
+        .main,
+        body.mobile-ui .main {
+          padding: 10px 12px 8px !important;
+        }
+        .student-search input,
+        body.mobile-ui .student-search input {
+          font-size: 18px !important;
+          min-height: 52px !important;
+          padding: 10px 12px !important;
+        }
+        .student-search label,
+        body.mobile-ui .student-search label {
+          font-size: 14px !important;
+        }
+        .student-list,
+        body.mobile-ui .student-list {
+          gap: 8px !important;
+        }
+        .pill,
+        body.mobile-ui .pill {
+          min-height: 56px !important;
+          font-size: 22px !important;
+          padding: 10px 16px !important;
+        }
+        .remove-student-btn,
+        body.mobile-ui .remove-student-btn {
+          width: 40px !important;
+          height: 40px !important;
+          font-size: 18px !important;
+        }
+        .bottom-inner,
+        body.mobile-ui .bottom-inner {
+          flex-wrap: wrap !important;
+          gap: 8px !important;
+          padding: 10px 12px calc(10px + env(safe-area-inset-bottom)) !important;
+        }
+        .summary,
+        body.mobile-ui .summary {
+          flex: 1 0 100% !important;
+          font-size: 16px !important;
+          line-height: 1.25 !important;
+        }
+        .mark-all-btn,
+        .clear-all-btn,
+        .save-btn,
+        body.mobile-ui .mark-all-btn,
+        body.mobile-ui .clear-all-btn,
+        body.mobile-ui .save-btn {
+          flex: 1 1 0 !important;
+          min-width: 0 !important;
+          font-size: 16px !important;
+          padding: 12px 10px !important;
+          border-radius: 12px !important;
+        }
+        .toast,
+        body.mobile-ui .toast {
+          font-size: 16px !important;
+          padding: 10px 14px !important;
+        }
+        .stats-view .stats-sub,
+        .late-view .stats-sub,
+        body.mobile-ui .stats-view .stats-sub,
+        body.mobile-ui .late-view .stats-sub {
+          font-size: 14px !important;
+          line-height: 1.35 !important;
+        }
+        .stats-view .stats-title,
+        .late-view .stats-title,
+        body.mobile-ui .stats-view .stats-title,
+        body.mobile-ui .late-view .stats-title {
+          font-size: 20px !important;
+        }
+        .stats-view .kpi-label,
+        .late-view .kpi-label,
+        body.mobile-ui .stats-view .kpi-label,
+        body.mobile-ui .late-view .kpi-label {
+          font-size: 13px !important;
+        }
+        .stats-view .kpi-value,
+        .late-view .kpi-value,
+        body.mobile-ui .stats-view .kpi-value,
+        body.mobile-ui .late-view .kpi-value {
+          font-size: 28px !important;
+        }
+        .stats-view .stats-table,
+        .late-view .stats-table,
+        body.mobile-ui .stats-view .stats-table,
+        body.mobile-ui .late-view .stats-table {
+          font-size: 14px !important;
+        }
+        .stats-view .stats-table th,
+        .late-view .stats-table th,
+        body.mobile-ui .stats-view .stats-table th,
+        body.mobile-ui .late-view .stats-table th {
+          font-size: 12px !important;
+        }
+      }
+
+      .qr-camera-wrap { position:relative; width:100%; max-width:520px; margin:14px auto; background:#000; border-radius:16px; overflow:hidden; aspect-ratio:4/3; }
+      #qrReader { width:100%; height:100%; } #qrReader video { width:100% !important; height:100% !important; object-fit:cover !important; display:block !important; }
+      .qr-camera-frame { position:absolute; inset:18%; border:3px solid rgba(255,255,255,.9); border-radius:18px; box-shadow:0 0 0 9999px rgba(0,0,0,.25); pointer-events:none; }
+      .qr-camera-frame span { position:absolute; left:10%; right:10%; top:50%; height:3px; background:#fff; opacity:.8; }
+    
+      /* Navigation: always below the title, with a compact responsive grid. */
+      .top-head {
+        display: block !important;
+      }
+      .top-head .brand {
+        width: 100%;
+      }
+      .top-actions {
+        width: 100%;
+        margin-top: 12px !important;
+        display: grid !important;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 8px !important;
+        align-items: stretch;
+      }
+      .top-actions .view-toggle-btn {
+        width: 100% !important;
+        min-width: 0 !important;
+        padding: 10px 8px !important;
+        font-size: 15px !important;
+        line-height: 1.1 !important;
+        white-space: nowrap;
+      }
+      @media (max-width: 680px) {
+        .top-actions {
+          grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        }
+        .top-actions #qrCodesToggleBtn {
+          grid-column: 1 / -1;
+        }
+      }
+
+
+/* Mobile: keep Scan QR and Member QR compact and equal-width. */
+@media (max-width: 700px) {
+  .top-nav,
+  .top-head .top-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .top-nav button:last-child,
+  .top-nav .view-toggle-btn:last-child,
+  .top-head .top-actions .view-toggle-btn:last-child {
+    grid-column: auto !important;
+  }
+
+  .top-nav,
+  .top-head .top-actions {
+    max-width: 100%;
+  }
+}
+
+</style>
+      <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script>
+      // ⚠️ REQUIRED: paste your deployed Apps Script Web App "/exec" URL here.
+      // Deploy > New deployment > Web app (Execute as: Me, Access: Anyone),
+      // then copy the URL it gives you into the line below.
+      window.RLCC_API_URL = "https://script.google.com/macros/s/AKfycbwtykv-CF1BbdusrmznNxh7ly-jvgq-wytn5fMFm_lMdWWhc99tsRwxb8ItpVYy-Ib9sQ/exec";
+    </script>
+  </head>
+  <body>
+    <div class="app">
+      <header class="top">
+        <div class="top-head">
+          <div class="brand">
+            <img class="brand-logo" src="data:image/png;base64,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SZIkSZKkNk1nWkbLYgr3BnYDp+eORRt2KXBOWVRfyR3IMFlBQZIkSZIkSZIkSWrftFZQmM7vOpOYwqOAPwJ+MncsWrN/BM4qi+rDuQMZBRMUJEmSJEmSJEmSpPZNa4KCLR5a1GxyzwK/BnwtbzRaxdeof06zk5qcIEmSJEmSJEmSJEltms60jA6IKRwL7ATOBX4oczi6zdeBVwJ7yqL6bu5gRs0KCpIkSZIkSZIkSVL7prWCwnR+1x0SU7gT8DzgvwEnZA5nmn0DuBB4XVlU38kdTFtMUJAkSZIkSZIkSZLaZ4KCsoop3Bl4DvBbwImZw5kmXwUuBt5QFtV1uYNpmwkKkiRJkiRJkiRJUvtMUFAnxBSOBn4ROBt4WOZwJtknqCsmvKssqhtzB5OLCQqSJEmSJEmSJElS+0xQUOfEFLYDzwV+HjgycziT4GbgSuD1ZVFdlTuYLjBBQZIkSZIkSZIkSWqfCQrqrJjCvYBnNY+TMoczjq4GLgEuKYvqmtzBdIkJCpIkSZIkSZIkSVL7TFBQ58UUtgCPA04HngYcnzeiTjsIXA5cCryvLCp34nswQUGSJEmSJEmSJElqnwkKGisxhaOAU4HTgKcAd8kbUSd8G7gCuAx4b1lUN2WOp/NMUJAkSZIkSZIkSZLaZ4KCxlZM4QeAnwV+rnk8MGtA7foc8J7m8f6yqP49czxjxQQFSZIkSZIkSZIkqX0mKGhixBTuT11dYRtwCnDPvBEN1f8DPgTsB95TFtUX8oYz3kxQkCRJkiRJkiRJktpngoImVkzhJOpEhVOAnwJOBo7MGtTa3Ax8BvgIdVLCh8qiujpvSJPFBAVJkiRJkiRJkiSpfSYoaGrEFI4CHgI8DHh4878PAH4EOCpDSDcBXwL+Gfgk8Inmfz9dFtVNGeKZGiYoSJIkSZIkSZIkSe0zQUFTL6ZwBHBv4H7N4z7A3YF7AHcDTmgedwKOaf7ZXXtc6trmf78HfAf4RvP4JvCvwL8BXwa+0Dy+UhbVLcP9brQWJihIkiRJkiRJkiRJ7ZvWBAVJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkobn/wMJ++Y/rvxKrgAAAABJRU5ErkJggg==" alt="Real Life Christian Communities">
+            <h1 class="title" id="appTitle">Attendance</h1>
+          </div>
+          <div class="top-actions">
+            <button id="homeToggleBtn" class="view-toggle-btn" type="button">Home</button>
+            <button id="statsToggleBtn" class="view-toggle-btn" type="button">Stats</button>
+            <button id="lateToggleBtn" class="view-toggle-btn" type="button">Late</button>
+            <button id="qrToggleBtn" class="view-toggle-btn" type="button">Scan QR</button>
+            <button id="qrCodesToggleBtn" class="view-toggle-btn" type="button">Member QR</button>
+          </div>
+        </div>
+        <div class="review-banner" id="reviewBanner" style="display:none;"></div>
+        <div class="controls" id="attendanceControls">
+          <div class="attendance-instructions">
+            Please fill out the Event Name and correct Date. Search for people as they arrive and mark them Present or Late. Anyone you don't mark will automatically be recorded as Absent when you save. You can edit a saved session later.
+          </div>
+          <div class="field field-full">
+            <label for="eventNameInput">Event Name</label>
+            <input id="eventNameInput" type="text" placeholder="e.g. Sunday Service" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="classSelect">Community</label>
+            <select id="classSelect"></select>
+          </div>
+          <div class="field">
+            <label for="dateInput">Date</label>
+            <input id="dateInput" type="date">
+          </div>
+          <div class="field">
+            <label for="eventStartTimeInput">Start Time</label>
+            <input id="eventStartTimeInput" type="time">
+          </div>
+          <div class="field">
+            <label for="eventEndTimeInput">End Time</label>
+            <input id="eventEndTimeInput" type="time">
+          </div>
+        </div>
+        <div class="loading-indicator" id="loadingIndicator" style="display:none;">Loading...</div>
+      </header>
+
+      <main class="main" id="attendanceView">
+        <div class="add-guest-row">
+          <button id="addGuestBtn" class="add-guest-btn" type="button">+ Add Guest</button>
+        </div>
+        <div class="student-search">
+          <label for="studentSearchInput">Find a person</label>
+          <input id="studentSearchInput" type="search" placeholder="Type a few letters of a name..." autocomplete="off" spellcheck="false">
+          <div class="search-result-hint" id="searchResultHint"></div>
+        </div>
+        <div class="student-list" id="studentList"></div>
+        <div class="empty" id="emptyMsg" style="display:none;">No active students for this class.</div>
+        <div class="footer-note">
+          <a href="https://ko-fi.com/sheetsmarts" target="_blank" rel="noopener noreferrer">SheetSmarts</a>. All Rights Reserved.
+        </div>
+      </main>
+
+      <div class="modal-overlay" id="addGuestOverlay">
+        <div class="modal-box">
+          <h3>Add Guest</h3>
+          <div class="field">
+            <label for="addGuestClass">Community</label>
+            <select id="addGuestClass"></select>
+          </div>
+          <div class="field">
+            <label for="addGuestName">Guest Name</label>
+            <input id="addGuestName" type="text" placeholder="Full name" autocomplete="off">
+          </div>
+          <div class="modal-actions">
+            <button id="addGuestCancelBtn" class="clear-all-btn" type="button">Cancel</button>
+            <button id="addGuestSaveBtn" class="save-btn" type="button">Add</button>
+          </div>
+        </div>
+      </div>
+
+      <main class="main stats-view" id="statsView">
+        <p class="stats-sub" id="statsSubtitle"></p>
+
+        <section class="stats-section">
+          <h3 class="stats-title">Review a Registered Event</h3>
+          <div class="stats-filters">
+            <label for="reviewEventSelect">Event</label>
+            <select id="reviewEventSelect">
+              <option value="">Select a registered event</option>
+            </select>
+            <button id="reviewEventRefreshBtn" class="add-guest-btn" type="button">Refresh Events</button>
+            <button id="reviewEventOpenBtn" class="add-guest-btn" type="button">Open for Editing</button>
+            <button id="reviewEventViewBtn" class="add-guest-btn" type="button">View List</button>
+            <button id="reviewEventPdfBtn" class="add-guest-btn" type="button">Download PDF</button>
+            <button id="reviewEventEmailPdfBtn" class="email-btn" type="button">Email PDF</button>
+          </div>
+          <p class="review-range-hint" id="reviewEventHint">Choose an event to view or edit its attendance across all Communities where it was registered.</p>
+          <div class="stats-filters">
+            <label for="reviewClassSelect">Community</label>
+            <select id="reviewClassSelect"></select>
+            <label for="reviewDateInput">Date</label>
+            <input id="reviewDateInput" type="date">
+            <button id="reviewOpenBtn" class="add-guest-btn" type="button">Open for Editing</button>
+            <button id="reviewViewBtn" class="add-guest-btn" type="button">View List</button>
+            <button id="reviewPdfBtn" class="add-guest-btn" type="button">Download PDF</button>
+            <button id="reviewEmailPdfBtn" class="email-btn" type="button">Email PDF</button>
+          </div>
+          <p class="review-range-hint">Or see who's mostly Present, Absent, or Late for this Community across the date range selected below (currently <span id="reviewRangeHintText"></span>).</p>
+          <div class="stats-filters">
+            <button id="reviewRangeViewBtn" class="add-guest-btn" type="button">View Range List</button>
+          </div>
+          <div class="session-summary" id="sessionSummary" style="display:none;"></div>
+        </section>
+
+        <div class="stats-filters">
+          <label for="statsClassFilter">Community</label>
+          <select id="statsClassFilter">
+            <option value="">All Communities</option>
+          </select>
+          <label for="statsFromDate">From</label>
+          <input id="statsFromDate" type="date">
+          <label for="statsToDate">To</label>
+          <input id="statsToDate" type="date">
+          <button id="statsClearFilterBtn" class="filter-clear-btn" type="button">Clear</button>
+        </div>
+        <div class="quick-range" id="statsQuickRange">
+          <button class="range-btn" data-range="this_month" type="button">This Month</button>
+          <button class="range-btn" data-range="last_month" type="button">Last Month</button>
+          <button class="range-btn" data-range="last_30" type="button">Last 30 Days</button>
+          <button class="range-btn" data-range="ytd" type="button">YTD</button>
+          <button class="range-btn" data-range="all" type="button">All Time</button>
+        </div>
+        <div class="kpi-grid" id="kpiGrid"></div>
+
+        <section class="stats-section">
+          <h3 class="stats-title">Attendance Trend</h3>
+          <div class="trend-bars" id="trendBars"></div>
+        </section>
+
+        <section class="stats-section">
+          <h3 class="stats-title">Community Performance</h3>
+          <div class="stats-table-wrap">
+            <table class="stats-table">
+              <thead>
+                <tr>
+                  <th>Community</th>
+                  <th>Rate</th>
+                  <th>Members</th>
+                  <th>At Risk</th>
+                  <th>Marked</th>
+                </tr>
+              </thead>
+              <tbody id="classStatsBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="stats-section">
+          <h3 class="stats-title">For Pastoral Care</h3>
+          <div class="stats-table-wrap">
+            <table class="stats-table">
+              <thead>
+                <tr>
+                  <th>Member</th>
+                  <th>Community</th>
+                  <th>Rate</th>
+                  <th>Band</th>
+                  <th>Marked</th>
+                </tr>
+              </thead>
+              <tbody id="studentStatsBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <div class="email-actions">
+          <button id="statsEmailBtn" class="email-btn" type="button">Email Stats</button>
+          <input id="statsEmailInput" type="email" placeholder="Recipient email for attendance stats">
+        </div>
+        <div class="footer-note">
+          <a href="https://ko-fi.com/sheetsmarts" target="_blank" rel="noopener noreferrer">SheetSmarts</a>. All Rights Reserved.
+        </div>
+      </main>
+
+      <main class="main late-view" id="lateView">
+        <p class="stats-sub" id="lateSubtitle"></p>
+        <div class="stats-filters">
+          <label for="lateClassFilter">Community</label>
+          <select id="lateClassFilter">
+            <option value="">All Communities</option>
+          </select>
+          <label for="lateFromDate">From</label>
+          <input id="lateFromDate" type="date">
+          <label for="lateToDate">To</label>
+          <input id="lateToDate" type="date">
+          <button id="lateClearFilterBtn" class="filter-clear-btn" type="button">Clear</button>
+        </div>
+        <div class="quick-range" id="lateQuickRange">
+          <button class="range-btn" data-range="this_month" type="button">This Month</button>
+          <button class="range-btn" data-range="last_month" type="button">Last Month</button>
+          <button class="range-btn" data-range="last_30" type="button">Last 30 Days</button>
+          <button class="range-btn" data-range="ytd" type="button">YTD</button>
+          <button class="range-btn" data-range="all" type="button">All Time</button>
+        </div>
+        <div class="kpi-grid" id="lateKpiGrid"></div>
+
+        <section class="stats-section">
+          <h3 class="stats-title">Late Trend</h3>
+          <div class="trend-bars" id="lateTrendBars"></div>
+        </section>
+
+        <section class="stats-section">
+          <h3 class="stats-title">Community Late Ranking</h3>
+          <div class="stats-table-wrap">
+            <table class="stats-table">
+              <thead>
+                <tr>
+                  <th>Community</th>
+                  <th>Late %</th>
+                  <th>Late</th>
+                  <th>Marked</th>
+                  <th>At Risk</th>
+                </tr>
+              </thead>
+              <tbody id="lateClassBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="stats-section">
+          <h3 class="stats-title">Late Risk List</h3>
+          <div class="stats-table-wrap">
+            <table class="stats-table">
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Community</th>
+                  <th>Late %</th>
+                  <th>Recent Late</th>
+                  <th>Late</th>
+                  <th>Band</th>
+                </tr>
+              </thead>
+              <tbody id="lateStudentBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <div class="email-actions">
+          <button id="lateEmailBtn" class="email-btn" type="button">Email Stats</button>
+          <input id="lateEmailInput" type="email" placeholder="Recipient email for late stats">
+        </div>
+        <div class="footer-note">
+          <a href="https://ko-fi.com/sheetsmarts" target="_blank" rel="noopener noreferrer">SheetSmarts</a>. All Rights Reserved.
+        </div>
+      </main>
+    </div>
+
+
+    <div class="qr-overlay" id="qrOverlay">
+      <div class="qr-box">
+        <div class="qr-head">
+          <h2 class="qr-title">Member QR Attendance</h2>
+          <button id="qrCloseBtn" class="view-toggle-btn" type="button">Close</button>
+        </div>
+        <div class="qr-actions">
+          <button id="qrScanModeBtn" type="button">Scan Attendance</button>
+          <button id="qrCodesModeBtn" class="secondary" type="button">Member QR Codes</button>
+        </div>
+        <div id="qrScannerMode" class="qr-mode active">
+          <div class="qr-status" id="qrScannerStatus">Select the event and date above, then tap “Scan Attendance”. Your phone camera will open inside the app.</div>
+          <div class="qr-camera-wrap">
+            <div id="qrReader"></div>
+            <div class="qr-camera-frame"><span></span></div>
+          </div>
+          <div class="qr-status" id="qrCheckinCount">Checked in: 0</div>
+        </div>
+        <div id="qrCodesMode" class="qr-mode">
+          <div class="qr-actions">
+            <button id="qrLoadCodesBtn" type="button">Load / Generate Codes</button>
+            <button id="qrPrintBtn" class="secondary" type="button">Print QR Cards</button>
+          </div>
+          <div class="qr-directory-tools">
+            <label>Community
+              <select id="qrCommunityFilter">
+                <option value="">All Communities</option>
+              </select>
+            </label>
+            <label class="qr-search-label">Search member
+              <input id="qrMemberSearch" type="search" placeholder="Type a member's name...">
+            </label>
+          </div>
+          <div class="qr-status" id="qrCodesStatus">Each active member has one permanent QR code.</div>
+          <div class="qr-status" id="qrFilteredCount"></div>
+          <div id="qrMemberDetail" class="qr-member-detail" hidden></div>
+          <div id="qrGrid" class="qr-grid"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom">
+      <div class="bottom-inner">
+        <div class="summary" id="summary">Present: 0 | Late: 0 | Absent: 0 | Unmarked: 0</div>
+        <button id="clearAllBtn" class="clear-all-btn" type="button">Clear</button>
+        <button id="markAllBtn" class="mark-all-btn" type="button">Mark All Present</button>
+        <button id="saveBtn" class="save-btn" type="button">Save</button>
+      </div>
+    </div>
+
+    <div class="toast-wrap">
+      <div class="toast" id="toast"></div>
+    </div>
+
+    <script>
+      var state = {
+        settings: {
+          appTitle: 'School Attendance',
+          defaultClass: '',
+          dateHeaderFmt: 'd/M'
+        },
+        view: 'attendance',
+        classes: [],
+        selectedClass: '',
+        selectedDateIso: '',
+        students: [],
+        studentSearch: '',
+        stats: null,
+        statsFilterClass: '',
+        statsFromIso: '',
+        statsToIso: '',
+        statsQuickRange: 'this_month',
+        late: null,
+        lateFilterClass: '',
+        lateFromIso: '',
+        lateToIso: '',
+        lateQuickRange: 'this_month',
+        reviewMode: false,
+        homeClassBeforeReview: '',
+        homeDateBeforeReview: '',
+        reviewEventName: '',
+        reviewEventDateIso: '',
+        registeredEvents: [],
+        reportBusy: false,
+        qrMembers: [],
+        qrCheckedIn: {},
+        qrScanner: null,
+        qrScannerRunning: false,
+        qrScannerControls: null,
+        qrScannerBusy: false
+      };
+
+      var el = {
+        appTitle: document.getElementById('appTitle'),
+        classSelect: document.getElementById('classSelect'),
+        dateInput: document.getElementById('dateInput'),
+        eventNameInput: document.getElementById('eventNameInput'),
+        eventStartTimeInput: document.getElementById('eventStartTimeInput'),
+        eventEndTimeInput: document.getElementById('eventEndTimeInput'),
+        reviewBanner: document.getElementById('reviewBanner'),
+        attendanceControls: document.getElementById('attendanceControls'),
+        attendanceView: document.getElementById('attendanceView'),
+        statsView: document.getElementById('statsView'),
+        lateView: document.getElementById('lateView'),
+        statsSubtitle: document.getElementById('statsSubtitle'),
+        kpiGrid: document.getElementById('kpiGrid'),
+        statsClassFilter: document.getElementById('statsClassFilter'),
+        reviewEventSelect: document.getElementById('reviewEventSelect'),
+        reviewEventRefreshBtn: document.getElementById('reviewEventRefreshBtn'),
+        reviewEventOpenBtn: document.getElementById('reviewEventOpenBtn'),
+        reviewEventViewBtn: document.getElementById('reviewEventViewBtn'),
+        reviewEventPdfBtn: document.getElementById('reviewEventPdfBtn'),
+        reviewEventEmailPdfBtn: document.getElementById('reviewEventEmailPdfBtn'),
+        reviewEventHint: document.getElementById('reviewEventHint'),
+        reviewClassSelect: document.getElementById('reviewClassSelect'),
+        reviewDateInput: document.getElementById('reviewDateInput'),
+        reviewOpenBtn: document.getElementById('reviewOpenBtn'),
+        reviewViewBtn: document.getElementById('reviewViewBtn'),
+        reviewPdfBtn: document.getElementById('reviewPdfBtn'),
+        reviewEmailPdfBtn: document.getElementById('reviewEmailPdfBtn'),
+        reviewRangeViewBtn: document.getElementById('reviewRangeViewBtn'),
+        reviewRangeHintText: document.getElementById('reviewRangeHintText'),
+        sessionSummary: document.getElementById('sessionSummary'),
+        statsFromDate: document.getElementById('statsFromDate'),
+        statsToDate: document.getElementById('statsToDate'),
+        statsClearFilterBtn: document.getElementById('statsClearFilterBtn'),
+        statsQuickRange: document.getElementById('statsQuickRange'),
+        trendBars: document.getElementById('trendBars'),
+        classStatsBody: document.getElementById('classStatsBody'),
+        studentStatsBody: document.getElementById('studentStatsBody'),
+        homeToggleBtn: document.getElementById('homeToggleBtn'),
+        statsToggleBtn: document.getElementById('statsToggleBtn'),
+        lateToggleBtn: document.getElementById('lateToggleBtn'),
+        qrToggleBtn: document.getElementById('qrToggleBtn'),
+        qrCodesToggleBtn: document.getElementById('qrCodesToggleBtn'),
+        qrOverlay: document.getElementById('qrOverlay'),
+        qrCloseBtn: document.getElementById('qrCloseBtn'),
+        qrScanModeBtn: document.getElementById('qrScanModeBtn'),
+        qrCodesModeBtn: document.getElementById('qrCodesModeBtn'),
+        qrScannerMode: document.getElementById('qrScannerMode'),
+        qrCodesMode: document.getElementById('qrCodesMode'),
+        qrReader: document.getElementById('qrReader'),
+        qrScannerStatus: document.getElementById('qrScannerStatus'),
+        qrCheckinCount: document.getElementById('qrCheckinCount'),
+        qrLoadCodesBtn: document.getElementById('qrLoadCodesBtn'),
+        qrPrintBtn: document.getElementById('qrPrintBtn'),
+        qrCodesStatus: document.getElementById('qrCodesStatus'),
+        qrCommunityFilter: document.getElementById('qrCommunityFilter'),
+        qrMemberSearch: document.getElementById('qrMemberSearch'),
+        qrFilteredCount: document.getElementById('qrFilteredCount'),
+        qrMemberDetail: document.getElementById('qrMemberDetail'),
+        qrGrid: document.getElementById('qrGrid'),
+        lateSubtitle: document.getElementById('lateSubtitle'),
+        lateClassFilter: document.getElementById('lateClassFilter'),
+        lateFromDate: document.getElementById('lateFromDate'),
+        lateToDate: document.getElementById('lateToDate'),
+        lateClearFilterBtn: document.getElementById('lateClearFilterBtn'),
+        lateQuickRange: document.getElementById('lateQuickRange'),
+        lateKpiGrid: document.getElementById('lateKpiGrid'),
+        lateTrendBars: document.getElementById('lateTrendBars'),
+        lateClassBody: document.getElementById('lateClassBody'),
+        lateStudentBody: document.getElementById('lateStudentBody'),
+        statsEmailInput: document.getElementById('statsEmailInput'),
+        statsEmailBtn: document.getElementById('statsEmailBtn'),
+        lateEmailInput: document.getElementById('lateEmailInput'),
+        lateEmailBtn: document.getElementById('lateEmailBtn'),
+        studentList: document.getElementById('studentList'),
+        emptyMsg: document.getElementById('emptyMsg'),
+        summary: document.getElementById('summary'),
+        clearAllBtn: document.getElementById('clearAllBtn'),
+        markAllBtn: document.getElementById('markAllBtn'),
+        bottomBar: document.querySelector('.bottom'),
+        saveBtn: document.getElementById('saveBtn'),
+        loadingIndicator: document.getElementById('loadingIndicator'),
+        toast: document.getElementById('toast'),
+        addGuestBtn: document.getElementById('addGuestBtn'),
+        addGuestOverlay: document.getElementById('addGuestOverlay'),
+        addGuestClass: document.getElementById('addGuestClass'),
+        addGuestName: document.getElementById('addGuestName'),
+        addGuestCancelBtn: document.getElementById('addGuestCancelBtn'),
+        addGuestSaveBtn: document.getElementById('addGuestSaveBtn'),
+        studentSearchInput: document.getElementById('studentSearchInput'),
+        searchResultHint: document.getElementById('searchResultHint')
+      };
+
+      var ALL_COMMUNITIES = '__ALL__';
+
+      var loadingCounter = 0;
+      var IS_ANDROID = /Android/i.test(navigator.userAgent || '');
+
+      function getScrollBehavior_() {
+        return IS_ANDROID ? 'auto' : 'smooth';
+      }
+
+      function setLoading(active, text) {
+        if (active) {
+          loadingCounter++;
+          el.loadingIndicator.textContent = text || 'Loading...';
+          el.loadingIndicator.style.display = 'block';
+          return;
+        }
+        loadingCounter = Math.max(0, loadingCounter - 1);
+        if (loadingCounter === 0) {
+          el.loadingIndicator.style.display = 'none';
+          el.loadingIndicator.textContent = 'Loading...';
+        }
+      }
+
+      function applyMobileClass() {
+        var isCoarse = window.matchMedia('(pointer: coarse)').matches;
+        var hasTouch = navigator.maxTouchPoints && navigator.maxTouchPoints > 0;
+        if (isCoarse || hasTouch) {
+          document.body.classList.add('mobile-ui');
+        } else {
+          document.body.classList.remove('mobile-ui');
+        }
+      }
+
+      function updateBottomBarHeight() {
+        if (!el.bottomBar) return;
+        var h = (state.view === 'attendance') ? (el.bottomBar.offsetHeight || 116) : 0;
+        document.documentElement.style.setProperty('--bottom-bar-height', h + 'px');
+      }
+
+      function escHtml(str) {
+        return String(str || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/\"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function setView(viewName) {
+        state.view = viewName;
+        var isAttendance = viewName === 'attendance';
+        var isStats = viewName === 'stats';
+        var isLate = viewName === 'late';
+        el.attendanceView.style.display = isAttendance ? 'block' : 'none';
+        el.statsView.classList.toggle('active', isStats);
+        el.lateView.classList.toggle('active', isLate);
+        el.attendanceControls.style.display = isAttendance ? 'grid' : 'none';
+        el.bottomBar.style.display = isAttendance ? 'block' : 'none';
+        el.homeToggleBtn.classList.toggle('active', isAttendance);
+        el.statsToggleBtn.classList.toggle('active', isStats);
+        el.lateToggleBtn.classList.toggle('active', isLate);
+        updateBottomBarHeight();
+      }
+
+      var API_BASE_URL_ = (window.RLCC_API_URL || '').trim();
+      var jsonpCounter_ = 0;
+
+      function callServer(fnName) {
+        var args = Array.prototype.slice.call(arguments, 1);
+        return new Promise(function(resolve, reject) {
+          if (!API_BASE_URL_ || API_BASE_URL_.indexOf('PASTE_YOUR') === 0) {
+            reject(new Error('API URL is not configured. Set window.RLCC_API_URL at the top of index.html.'));
+            return;
+          }
+
+          jsonpCounter_ += 1;
+          var callbackName = '__rlccCb' + jsonpCounter_ + '_' + Date.now();
+          var script = document.createElement('script');
+          var timeoutId;
+
+          function cleanup() {
+            delete window[callbackName];
+            if (script.parentNode) script.parentNode.removeChild(script);
+            clearTimeout(timeoutId);
+          }
+
+          window[callbackName] = function(result) {
+            cleanup();
+            if (result && result.ok) {
+              resolve(result.data);
+            } else {
+              reject(new Error((result && result.error) || 'Server error'));
+            }
+          };
+
+          timeoutId = setTimeout(function() {
+            cleanup();
+            reject(new Error('Request timed out. Please try again.'));
+          }, 60000);
+
+          var url = API_BASE_URL_ +
+            (API_BASE_URL_.indexOf('?') === -1 ? '?' : '&') +
+            'api=1&fn=' + encodeURIComponent(fnName) +
+            '&args=' + encodeURIComponent(JSON.stringify(args)) +
+            '&callback=' + encodeURIComponent(callbackName);
+
+          script.src = url;
+          script.onerror = function() {
+            cleanup();
+            reject(new Error('Could not reach the server. Check your connection or the API URL.'));
+          };
+          document.body.appendChild(script);
+        });
+      }
+
+      function showToast(message, isError) {
+        el.toast.textContent = message;
+        el.toast.style.background = isError ? '#991b1b' : '#111827';
+        el.toast.classList.add('show');
+        clearTimeout(showToast._timer);
+        showToast._timer = setTimeout(function() {
+          el.toast.classList.remove('show');
+        }, 2200);
+      }
+
+      function rateText(x) {
+        var n = Number(x || 0);
+        return n.toFixed(1) + '%';
+      }
+
+      function isoToDate(iso) {
+        if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+        var p = iso.split('-');
+        return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+      }
+
+      function dateToIso(d) {
+        var y = d.getFullYear();
+        var m = String(d.getMonth() + 1).padStart(2, '0');
+        var day = String(d.getDate()).padStart(2, '0');
+        return y + '-' + m + '-' + day;
+      }
+
+      function setLateQuickRangeActive(key) {
+        var buttons = el.lateQuickRange.querySelectorAll('.range-btn');
+        for (var i = 0; i < buttons.length; i++) {
+          buttons[i].classList.toggle('active', buttons[i].getAttribute('data-range') === key);
+        }
+      }
+
+      function setStatsQuickRangeActive(key) {
+        var buttons = el.statsQuickRange.querySelectorAll('.range-btn');
+        for (var i = 0; i < buttons.length; i++) {
+          buttons[i].classList.toggle('active', buttons[i].getAttribute('data-range') === key);
+        }
+      }
+
+      function applyStatsQuickRange(key) {
+        var today = isoToDate(state.selectedDateIso) || new Date();
+        var from = null;
+        var to = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        if (key === 'this_month') {
+          from = new Date(today.getFullYear(), today.getMonth(), 1);
+        } else if (key === 'last_month') {
+          from = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+          to = new Date(today.getFullYear(), today.getMonth(), 0);
+        } else if (key === 'last_30') {
+          from = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 29);
+        } else if (key === 'ytd') {
+          from = new Date(today.getFullYear(), 0, 1);
+        } else if (key === 'all') {
+          from = null;
+          to = null;
+        } else {
+          from = new Date(today.getFullYear(), today.getMonth(), 1);
+        }
+        state.statsQuickRange = key;
+        state.statsFromIso = from ? dateToIso(from) : '';
+        state.statsToIso = to ? dateToIso(to) : '';
+        el.statsFromDate.value = state.statsFromIso;
+        el.statsToDate.value = state.statsToIso;
+        setStatsQuickRangeActive(key);
+      }
+
+      function applyLateQuickRange(key) {
+        var today = isoToDate(state.selectedDateIso) || new Date();
+        var from = null;
+        var to = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        if (key === 'this_month') {
+          from = new Date(today.getFullYear(), today.getMonth(), 1);
+        } else if (key === 'last_month') {
+          from = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+          to = new Date(today.getFullYear(), today.getMonth(), 0);
+        } else if (key === 'last_30') {
+          from = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 29);
+        } else if (key === 'ytd') {
+          from = new Date(today.getFullYear(), 0, 1);
+        } else if (key === 'all') {
+          from = null;
+          to = null;
+        } else {
+          from = new Date(today.getFullYear(), today.getMonth(), 1);
+        }
+        state.lateQuickRange = key;
+        state.lateFromIso = from ? dateToIso(from) : '';
+        state.lateToIso = to ? dateToIso(to) : '';
+        el.lateFromDate.value = state.lateFromIso;
+        el.lateToDate.value = state.lateToIso;
+        setLateQuickRangeActive(key);
+      }
+
+      function renderStats(data) {
+        if (!data) return;
+        var k = data.kpis || {};
+        var t = data.thresholds || {};
+        var classesForFilter = Array.isArray(data.availableClasses) ? data.availableClasses : [];
+        var currentFilter = data.selectedClass || '';
+        var currentFrom = data.dateFromIso || '';
+        var currentTo = data.dateToIso || '';
+        if (el.statsClassFilter.getAttribute('data-init') !== '1' || el.statsClassFilter.value !== currentFilter) {
+          var opts = ['<option value="">All Communities</option>'].concat(
+            classesForFilter.map(function(cls) {
+              var sel = cls === currentFilter ? ' selected' : '';
+              return '<option value="' + escHtml(cls) + '"' + sel + '>' + escHtml(cls) + '</option>';
+            })
+          );
+          el.statsClassFilter.innerHTML = opts.join('');
+          el.statsClassFilter.setAttribute('data-init', '1');
+        }
+
+        el.statsFromDate.value = currentFrom;
+        el.statsToDate.value = currentTo;
+
+        // Registered events are loaded independently from the stats payload.
+        // Do not overwrite the freshly loaded event list here.
+
+        el.statsSubtitle.textContent =
+          (currentFilter ? ('Community: ' + currentFilter + ' | ') : 'Community: All | ') +
+          (currentFrom || currentTo ? ('Range: ' + (currentFrom || '...') + ' to ' + (currentTo || '...') + ' | ') : 'Range: All Time | ') +
+          'Risk < ' + (t.riskPct || 85) + '% | Warning < ' + (t.warningPct || 90) + '% | Min records: ' + (t.minRecordsForRisk || 5);
+
+        if (el.reviewRangeHintText) {
+          el.reviewRangeHintText.textContent = currentFrom || currentTo ?
+            ((currentFrom || '...') + ' to ' + (currentTo || '...')) : 'All Time';
+        }
+
+        var kpis = [
+          { label: 'Overall Rate', value: rateText(k.overallRate || 0) },
+          { label: 'At Risk', value: String(k.atRiskCount || 0) },
+          { label: 'Members', value: String(k.students || 0) },
+          { label: 'Communities', value: String(k.classes || 0) },
+          { label: 'Present', value: String(k.present || 0) },
+          { label: 'Absent', value: String(k.absent || 0) },
+          { label: 'Unmarked', value: String(k.unmarked || 0) },
+          { label: 'Marked', value: String(k.marked || 0) }
+        ];
+        el.kpiGrid.innerHTML = kpis.map(function(item) {
+          return '<div class="kpi-card"><div class="kpi-label">' + escHtml(item.label) + '</div><div class="kpi-value">' + escHtml(item.value) + '</div></div>';
+        }).join('');
+
+        var trend = Array.isArray(data.trend) ? data.trend : [];
+        el.trendBars.innerHTML = trend.map(function(row) {
+          var width = Math.max(0, Math.min(100, Number(row.rate || 0)));
+          return '<div class="trend-row">' +
+            '<div class="trend-label">' + escHtml(row.label) + '</div>' +
+            '<div class="trend-bar"><div class="trend-fill" style="width:' + width + '%"></div></div>' +
+            '<div class="trend-rate">' + escHtml(rateText(row.rate || 0)) + '</div>' +
+          '</div>';
+        }).join('') || '<div class="trend-label">No attendance data yet.</div>';
+
+        var classes = Array.isArray(data.classes) ? data.classes : [];
+        el.classStatsBody.innerHTML = classes.map(function(row) {
+          return '<tr>' +
+            '<td>' + escHtml(row.className) + '</td>' +
+            '<td>' + escHtml(rateText(row.rate || 0)) + '</td>' +
+            '<td>' + escHtml(String(row.students || 0)) + '</td>' +
+            '<td>' + escHtml(String(row.atRiskCount || 0)) + '</td>' +
+            '<td>' + escHtml(String(row.marked || 0)) + '</td>' +
+          '</tr>';
+        }).join('') || '<tr><td colspan="5">No class stats yet.</td></tr>';
+
+        var students = Array.isArray(data.students) ? data.students.slice(0, 80) : [];
+        el.studentStatsBody.innerHTML = students.map(function(row) {
+          var bandLabel = row.band === 'insufficient' ? 'insufficient data' : row.band;
+          return '<tr>' +
+            '<td>' + escHtml((row.sortOrder ? row.sortOrder + '. ' : '') + row.name) + '</td>' +
+            '<td>' + escHtml(row.className) + '</td>' +
+            '<td>' + escHtml(rateText(row.rate || 0)) + '</td>' +
+            '<td><span class="band-pill band-' + escHtml(row.band) + '">' + escHtml(bandLabel) + '</span></td>' +
+            '<td>' + escHtml(String(row.marked || 0)) + '</td>' +
+          '</tr>';
+        }).join('') || '<tr><td colspan="5">No student stats yet.</td></tr>';
+      }
+
+      async function loadStatsDashboard(forceReload) {
+        var key = [state.statsFilterClass || '__ALL__', state.statsFromIso || '', state.statsToIso || ''].join('|');
+        if (state.stats && state.stats[key] && !forceReload) {
+          renderStats(state.stats[key]);
+          return;
+        }
+        if (!state.stats) state.stats = {};
+        try {
+          el.statsToggleBtn.disabled = true;
+          el.statsClassFilter.disabled = true;
+          el.statsFromDate.disabled = true;
+          el.statsToDate.disabled = true;
+          var data = await callServer('apiGetStatsDashboard', state.statsFilterClass || '', state.statsFromIso || '', state.statsToIso || '');
+          state.stats[key] = data || null;
+          renderStats(state.stats[key]);
+        } catch (err) {
+          showToast('Failed to load stats', true);
+        } finally {
+          el.statsToggleBtn.disabled = false;
+          el.statsClassFilter.disabled = false;
+          el.statsFromDate.disabled = false;
+          el.statsToDate.disabled = false;
+        }
+      }
+
+      function renderLate(data) {
+        if (!data) return;
+        var k = data.kpis || {};
+        var t = data.thresholds || {};
+        var classesForFilter = Array.isArray(data.availableClasses) ? data.availableClasses : [];
+        var currentFilter = data.selectedClass || '';
+        var currentFrom = data.dateFromIso || '';
+        var currentTo = data.dateToIso || '';
+
+        if (el.lateClassFilter.getAttribute('data-init') !== '1' || el.lateClassFilter.value !== currentFilter) {
+          var cOpts = ['<option value="">All Communities</option>'].concat(
+            classesForFilter.map(function(cls) {
+              var sel = cls === currentFilter ? ' selected' : '';
+              return '<option value="' + escHtml(cls) + '"' + sel + '>' + escHtml(cls) + '</option>';
+            })
+          );
+          el.lateClassFilter.innerHTML = cOpts.join('');
+          el.lateClassFilter.setAttribute('data-init', '1');
+        }
+
+        el.lateFromDate.value = currentFrom;
+        el.lateToDate.value = currentTo;
+
+        el.lateSubtitle.textContent =
+          (currentFilter ? ('Community: ' + currentFilter + ' | ') : 'Community: All | ') +
+          (currentFrom || currentTo ? ('Range: ' + (currentFrom || '...') + ' to ' + (currentTo || '...') + ' | ') : 'Range: All Time | ') +
+          'Risk >= ' + (t.lateRiskPct || 10) + '% | Warning >= ' + (t.lateWarningPct || 5) + '% | Min records: ' + (t.minRecordsForLateRisk || 5) +
+          ' | Recent: ' + (t.recentLateRiskCount || 3) + '+ late in ' + (t.recentLateWindowDays || 30) + 'd';
+
+        var kpis = [
+          { label: 'Late Rate', value: rateText(k.lateRate || 0) },
+          { label: 'Late Count', value: String(k.late || 0) },
+          { label: 'Students Late', value: String(k.studentsLateAny || 0) },
+          { label: 'Recent Risk', value: String(k.recentRiskCount || 0) },
+          { label: 'At Risk', value: String(k.atRiskCount || 0) },
+          { label: 'On-Time Rate', value: rateText(k.onTimeRate || 0) },
+          { label: 'Marked', value: String(k.marked || 0) }
+        ];
+        el.lateKpiGrid.innerHTML = kpis.map(function(item) {
+          return '<div class="kpi-card"><div class="kpi-label">' + escHtml(item.label) + '</div><div class="kpi-value">' + escHtml(item.value) + '</div></div>';
+        }).join('');
+
+        var trend = Array.isArray(data.trend) ? data.trend : [];
+        el.lateTrendBars.innerHTML = trend.map(function(row) {
+          var width = Math.max(0, Math.min(100, Number(row.lateRate || 0)));
+          return '<div class="trend-row">' +
+            '<div class="trend-label">' + escHtml(row.label) + '</div>' +
+            '<div class="trend-bar"><div class="trend-fill" style="width:' + width + '%;background:linear-gradient(90deg,#f59e0b,#f97316);"></div></div>' +
+            '<div class="trend-rate">' + escHtml(rateText(row.lateRate || 0)) + '</div>' +
+          '</div>';
+        }).join('') || '<div class="trend-label">No late data in selected range.</div>';
+
+        var clsRows = Array.isArray(data.classes) ? data.classes : [];
+        el.lateClassBody.innerHTML = clsRows.map(function(row) {
+          return '<tr>' +
+            '<td>' + escHtml(row.className) + '</td>' +
+            '<td>' + escHtml(rateText(row.lateRate || 0)) + '</td>' +
+            '<td>' + escHtml(String(row.late || 0)) + '</td>' +
+            '<td>' + escHtml(String(row.marked || 0)) + '</td>' +
+            '<td>' + escHtml(String(row.atRiskCount || 0)) + '</td>' +
+          '</tr>';
+        }).join('') || '<tr><td colspan="5">No class late stats yet.</td></tr>';
+
+        var studentRows = Array.isArray(data.students) ? data.students.slice(0, 100) : [];
+        el.lateStudentBody.innerHTML = studentRows.map(function(row) {
+          var bandLabel = row.band === 'insufficient' ? 'insufficient data' : row.band;
+          return '<tr>' +
+            '<td>' + escHtml((row.sortOrder ? row.sortOrder + '. ' : '') + row.name) + '</td>' +
+            '<td>' + escHtml(row.className) + '</td>' +
+            '<td>' + escHtml(rateText(row.lateRate || 0)) + '</td>' +
+            '<td>' + escHtml(String(row.recentLate || 0)) + '</td>' +
+            '<td>' + escHtml(String(row.late || 0)) + '</td>' +
+            '<td><span class="band-pill band-' + escHtml(row.band) + '">' + escHtml(bandLabel) + '</span></td>' +
+          '</tr>';
+        }).join('') || '<tr><td colspan="6">No student late stats yet.</td></tr>';
+      }
+
+      async function loadLateDashboard(forceReload) {
+        var key = [state.lateFilterClass || '__ALL__', state.lateFromIso || '', state.lateToIso || ''].join('|');
+        if (state.late && state.late[key] && !forceReload) {
+          renderLate(state.late[key]);
+          return;
+        }
+        if (!state.late) state.late = {};
+        try {
+          el.lateToggleBtn.disabled = true;
+          el.lateClassFilter.disabled = true;
+          el.lateFromDate.disabled = true;
+          el.lateToDate.disabled = true;
+          var data = await callServer('apiGetLateDashboard', state.lateFromIso || '', state.lateToIso || '', state.lateFilterClass || '');
+          state.late[key] = data || null;
+          renderLate(state.late[key]);
+        } catch (err) {
+          showToast('Failed to load late stats', true);
+        } finally {
+          el.lateToggleBtn.disabled = false;
+          el.lateClassFilter.disabled = false;
+          el.lateFromDate.disabled = false;
+          el.lateToDate.disabled = false;
+        }
+      }
+
+      function invalidateStatsCache() {
+        state.stats = null;
+        state.late = null;
+      }
+
+      async function onStatsFilterChange() {
+        state.statsFilterClass = el.statsClassFilter.value || '';
+        await loadStatsDashboard(true);
+      }
+
+      async function ensureStatsLoaded() {
+        await loadStatsDashboard(false);
+      }
+
+      async function openStatsView() {
+        setView('stats');
+        // Registered events are independent of the stats filters/cache. Always
+        // fetch them fresh when Stats is opened so an event saved elsewhere
+        // (including yesterday) appears immediately.
+        try {
+          var events = await callServer('apiGetRegisteredEvents');
+          state.registeredEvents = Array.isArray(events) ? events : [];
+          renderRegisteredEvents();
+        } catch (err) {
+          showToast('Failed to load registered events: ' + err.message, true);
+        }
+        await ensureStatsLoaded();
+      }
+
+      function closeStatsView() {
+        setView('attendance');
+      }
+
+      async function refreshRegisteredEvents() {
+        if (!el.reviewEventSelect) return;
+        if (el.reviewEventRefreshBtn) el.reviewEventRefreshBtn.disabled = true;
+        setLoading(true, 'Loading events...');
+        try {
+          var events = await callServer('apiGetRegisteredEvents');
+          state.registeredEvents = Array.isArray(events) ? events : [];
+          renderRegisteredEvents();
+          showToast(state.registeredEvents.length ? 'Registered events refreshed' : 'No registered events found');
+        } catch (err) {
+          showToast('Failed to load registered events: ' + err.message, true);
+        } finally {
+          if (el.reviewEventRefreshBtn) el.reviewEventRefreshBtn.disabled = false;
+          setLoading(false);
+        }
+      }
+
+      function renderRegisteredEvents() {
+        if (!el.reviewEventSelect) return;
+        var currentKey = el.reviewEventSelect.value || '';
+        el.reviewEventSelect.innerHTML = '';
+
+        var placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = state.registeredEvents.length ? 'Select a registered event' : 'No registered events yet';
+        el.reviewEventSelect.appendChild(placeholder);
+
+        state.registeredEvents.forEach(function(evt) {
+          var opt = document.createElement('option');
+          opt.value = evt.dateIso + '|' + evt.eventName;
+          opt.textContent = evt.eventName + ' — ' + evt.dateIso + (evt.startTime || evt.endTime ? ' — ' + (evt.startTime || '') + '–' + (evt.endTime || '') : '') + ' — ' + evt.communities.length + ' Communities';
+          el.reviewEventSelect.appendChild(opt);
+        });
+
+        if (currentKey && state.registeredEvents.some(function(evt) {
+          return evt.dateIso + '|' + evt.eventName === currentKey;
+        })) {
+          el.reviewEventSelect.value = currentKey;
+        }
+        updateRegisteredEventHint();
+      }
+
+      function getSelectedRegisteredEvent() {
+        var value = el.reviewEventSelect ? el.reviewEventSelect.value : '';
+        if (!value) return null;
+        for (var i = 0; i < state.registeredEvents.length; i++) {
+          var evt = state.registeredEvents[i];
+          if (evt.dateIso + '|' + evt.eventName === value) return evt;
+        }
+        return null;
+      }
+
+      function updateRegisteredEventHint() {
+        var evt = getSelectedRegisteredEvent();
+        if (!el.reviewEventHint) return;
+        if (!evt) {
+          el.reviewEventHint.textContent = 'Choose an event to view or edit its attendance across all Communities where it was registered.';
+          return;
+        }
+        el.reviewEventHint.textContent = evt.eventName + ' — ' + evt.dateIso + (evt.startTime || evt.endTime ? ' — ' + (evt.startTime || '') + '–' + (evt.endTime || '') : '') + ' — ' + evt.communities.join(', ');
+      }
+
+      async function openRegisteredEvent() {
+        var evt = getSelectedRegisteredEvent();
+        if (!evt) {
+          showToast('Please choose a registered event', true);
+          return;
+        }
+
+        if (!state.reviewMode) {
+          state.homeClassBeforeReview = state.selectedClass;
+          state.homeDateBeforeReview = state.selectedDateIso;
+          state.reviewMode = true;
+        }
+
+        state.reviewEventName = evt.eventName;
+        state.reviewEventDateIso = evt.dateIso;
+        state.selectedClass = ALL_COMMUNITIES;
+        state.selectedDateIso = evt.dateIso;
+        el.classSelect.value = ALL_COMMUNITIES;
+        el.dateInput.value = evt.dateIso;
+        el.eventNameInput.value = evt.eventName;
+        if (el.eventStartTimeInput) el.eventStartTimeInput.value = evt.startTime || '';
+        if (el.eventEndTimeInput) el.eventEndTimeInput.value = evt.endTime || '';
+
+        setView('attendance');
+        updateReviewBanner();
+        setLoading(true, 'Loading event...');
+        try {
+          var payload = await callServer('apiGetEventRoster', evt.eventName, evt.dateIso);
+          if (!payload || !payload.ok) throw new Error((payload && payload.message) || 'Event not found');
+          state.students = payload.students || [];
+          state.studentSearch = '';
+          if (el.studentSearchInput) el.studentSearchInput.value = '';
+          renderStudents();
+          showToast('Editing ' + evt.eventName + ' — ' + evt.dateIso);
+        } catch (err) {
+          showToast('Failed to load event: ' + err.message, true);
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      async function viewRegisteredEvent() {
+        var evt = getSelectedRegisteredEvent();
+        if (!evt) {
+          showToast('Please choose a registered event', true);
+          return;
+        }
+
+        setLoading(true, 'Loading event...');
+        try {
+          var payload = await callServer('apiGetEventRoster', evt.eventName, evt.dateIso);
+          if (!payload || !payload.ok) throw new Error((payload && payload.message) || 'Event not found');
+          renderSessionSummary(evt.eventName, evt.dateIso, evt.eventName, payload.students || [], true);
+        } catch (err) {
+          showToast('Failed to load event: ' + err.message, true);
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      function downloadBase64Pdf(res) {
+        if (!res || !res.base64) throw new Error((res && res.message) || 'PDF was not generated.');
+        var byteChars = atob(res.base64);
+        var bytes = new Uint8Array(byteChars.length);
+        for (var i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
+        var blob = new Blob([bytes], { type: res.mimeType || 'application/pdf' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = res.fileName || 'attendance-report.pdf';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+      }
+
+      function setReportButtonsBusy(busy) {
+        var buttons = [el.reviewEventPdfBtn, el.reviewEventEmailPdfBtn, el.reviewPdfBtn, el.reviewEmailPdfBtn];
+        buttons.forEach(function(btn) { if (btn) btn.disabled = !!busy; });
+      }
+
+      async function downloadRegisteredEventPdf() {
+        var evt = getSelectedRegisteredEvent();
+        if (!evt) { showToast('Please choose a registered event', true); return; }
+        setReportButtonsBusy(true);
+        setLoading(true, 'Preparing PDF...');
+        try {
+          var res = await callServer('apiDownloadEventAttendancePdf', evt.eventName, evt.dateIso);
+          downloadBase64Pdf(res);
+          showToast('PDF report downloaded');
+        } catch (err) {
+          showToast('PDF failed: ' + err.message, true);
+        } finally {
+          setReportButtonsBusy(false);
+          setLoading(false);
+        }
+      }
+
+      async function emailRegisteredEventPdf() {
+        var evt = getSelectedRegisteredEvent();
+        if (!evt) { showToast('Please choose a registered event', true); return; }
+        var to = window.prompt('Email the PDF report to:', el.statsEmailInput && el.statsEmailInput.value ? el.statsEmailInput.value.trim() : '');
+        if (to === null) return;
+        to = to.trim();
+        if (!to) { showToast('Please enter an email address', true); return; }
+        setReportButtonsBusy(true);
+        setLoading(true, 'Preparing and emailing PDF...');
+        try {
+          var res = await callServer('apiEmailEventAttendancePdf', evt.eventName, evt.dateIso, to);
+          showToast(res && res.message ? res.message : 'PDF emailed');
+        } catch (err) {
+          showToast('Email failed: ' + err.message, true);
+        } finally {
+          setReportButtonsBusy(false);
+          setLoading(false);
+        }
+      }
+
+      async function downloadCommunityPdf() {
+        var className = el.reviewClassSelect.value;
+        var dateIso = el.reviewDateInput.value;
+        if (!className) { showToast('Please choose a Community', true); return; }
+        if (!dateIso) { showToast('Please choose a Date', true); return; }
+        setReportButtonsBusy(true);
+        setLoading(true, 'Preparing PDF...');
+        try {
+          var res = await callServer('apiDownloadCommunityAttendancePdf', className, dateIso);
+          downloadBase64Pdf(res);
+          showToast('PDF report downloaded');
+        } catch (err) {
+          showToast('PDF failed: ' + err.message, true);
+        } finally {
+          setReportButtonsBusy(false);
+          setLoading(false);
+        }
+      }
+
+      async function emailCommunityPdf() {
+        var className = el.reviewClassSelect.value;
+        var dateIso = el.reviewDateInput.value;
+        if (!className) { showToast('Please choose a Community', true); return; }
+        if (!dateIso) { showToast('Please choose a Date', true); return; }
+        var to = window.prompt('Email the PDF report to:', el.statsEmailInput && el.statsEmailInput.value ? el.statsEmailInput.value.trim() : '');
+        if (to === null) return;
+        to = to.trim();
+        if (!to) { showToast('Please enter an email address', true); return; }
+        setReportButtonsBusy(true);
+        setLoading(true, 'Preparing and emailing PDF...');
+        try {
+          var res = await callServer('apiEmailCommunityAttendancePdf', className, dateIso, to);
+          showToast(res && res.message ? res.message : 'PDF emailed');
+        } catch (err) {
+          showToast('Email failed: ' + err.message, true);
+        } finally {
+          setReportButtonsBusy(false);
+          setLoading(false);
+        }
+      }
+
+      async function openReviewSession() {
+        var className = el.reviewClassSelect.value;
+        var dateIso = el.reviewDateInput.value;
+
+        if (!className) {
+          showToast('Please choose a Community', true);
+          return;
+        }
+        if (!dateIso) {
+          showToast('Please choose a Date', true);
+          return;
+        }
+
+        if (!state.reviewMode) {
+          state.homeClassBeforeReview = state.selectedClass;
+          state.homeDateBeforeReview = state.selectedDateIso;
+          state.reviewMode = true;
+        }
+
+        state.reviewEventName = '';
+        state.reviewEventDateIso = '';
+        state.selectedClass = className;
+        state.selectedDateIso = dateIso;
+        el.classSelect.value = className;
+        el.dateInput.value = dateIso;
+
+        setView('attendance');
+        updateReviewBanner();
+        await loadRoster();
+        showToast('Editing ' + className + ' \u2014 ' + dateIso);
+      }
+
+      function updateReviewBanner() {
+        if (!el.reviewBanner) return;
+        if (state.reviewMode) {
+          if (state.reviewEventName) {
+            el.reviewBanner.textContent = 'Reviewing event: ' + state.reviewEventName + ' — ' + state.reviewEventDateIso + '. Tap Home to return to your regular session.';
+          } else {
+            el.reviewBanner.textContent = 'Reviewing ' + state.selectedClass + ' \u2014 ' + state.selectedDateIso + '. Tap Home to return to your regular session.';
+          }
+          el.reviewBanner.style.display = 'block';
+        } else {
+          el.reviewBanner.style.display = 'none';
+        }
+      }
+
+      async function viewSessionSummary() {
+        var className = el.reviewClassSelect.value;
+        var dateIso = el.reviewDateInput.value;
+
+        if (!className) {
+          showToast('Please choose a Community', true);
+          return;
+        }
+        if (!dateIso) {
+          showToast('Please choose a Date', true);
+          return;
+        }
+
+        setLoading(true, 'Loading...');
+        try {
+          var payload = await callServer('apiGetClassRoster', className, dateIso);
+          renderSessionSummary(className, dateIso, payload.eventName || '', payload.students || []);
+        } catch (err) {
+          showToast('Failed to load session: ' + err.message, true);
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      async function viewRangeSummary() {
+        var className = el.reviewClassSelect.value;
+
+        if (!className) {
+          showToast('Please choose a Community', true);
+          return;
+        }
+
+        setLoading(true, 'Loading...');
+        try {
+          var res = await callServer('apiGetCommunityStatusBreakdown', className, state.statsFromIso || '', state.statsToIso || '');
+          if (!res || !res.ok) {
+            showToast((res && res.message) || 'Failed to load range summary', true);
+            return;
+          }
+          renderRangeSummary(res);
+        } catch (err) {
+          showToast('Failed to load range summary: ' + err.message, true);
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      function renderGroupedSummary(headerText, groups) {
+        var html = '<div class="session-summary-header">' + headerText + '</div>';
+        groups.forEach(function(g) {
+          html += '<div class="session-summary-group ' + g.key + '">' +
+            '<div class="session-summary-title">' + escHtml(g.label) + ' (' + g.names.length + ')</div>' +
+            '<div class="session-summary-names">' + (g.names.length ? g.names.map(escHtml).join(', ') : '\u2014') + '</div>' +
+          '</div>';
+        });
+        el.sessionSummary.innerHTML = html;
+        el.sessionSummary.style.display = 'block';
+      }
+
+      function renderSessionSummary(className, dateIso, eventName, students, includeCommunity) {
+        var groupsByLabel = { Present: [], Absent: [], Late: [], Unmarked: [] };
+        students.forEach(function(s) {
+          var displayName = includeCommunity && s.className ? s.name + ' (' + s.className + ')' : s.name;
+          groupsByLabel[statusText(s.status)].push(displayName);
+        });
+
+        var headerBits = [escHtml(className), escHtml(dateIso)];
+        if (eventName && className !== eventName) headerBits.push(escHtml(eventName));
+
+        renderGroupedSummary(headerBits.join(' \u2014 '), [
+          { key: 'present', label: 'Present', names: groupsByLabel.Present },
+          { key: 'absent', label: 'Absent', names: groupsByLabel.Absent },
+          { key: 'late', label: 'Late', names: groupsByLabel.Late },
+          { key: 'unmarked', label: 'Unmarked', names: groupsByLabel.Unmarked }
+        ]);
+      }
+
+      function renderRangeSummary(res) {
+        var rangeText = (res.fromIso || res.toIso) ?
+          ((res.fromIso || '...') + ' to ' + (res.toIso || '...')) : 'All Time';
+        var headerText = escHtml(res.className) + ' \u2014 ' + escHtml(rangeText);
+
+        renderGroupedSummary(headerText, [
+          { key: 'present', label: 'Mostly Present', names: res.present || [] },
+          { key: 'absent', label: 'Mostly Absent', names: res.absent || [] },
+          { key: 'late', label: 'Mostly Late', names: res.late || [] },
+          { key: 'unmarked', label: 'No Data in Range', names: res.none || [] }
+        ]);
+      }
+
+      async function openLateView() {
+        setView('late');
+        await loadLateDashboard(false);
+      }
+
+      async function goHomeView() {
+        if (state.reviewMode) {
+          state.reviewEventName = '';
+          state.reviewEventDateIso = '';
+          state.selectedClass = state.homeClassBeforeReview;
+          state.selectedDateIso = state.homeDateBeforeReview;
+          state.reviewMode = false;
+          el.classSelect.value = state.selectedClass;
+          el.dateInput.value = state.selectedDateIso;
+          updateReviewBanner();
+          setView('attendance');
+          await loadRoster();
+          return;
+        }
+        closeStatsView();
+      }
+
+      async function refreshStatsAfterSave() {
+        invalidateStatsCache();
+        if (state.view === 'stats') {
+          await loadStatsDashboard(true);
+          await refreshRegisteredEvents();
+        } else if (state.view === 'late') {
+          await loadLateDashboard(true);
+        }
+      }
+
+      async function emailAttendanceStats() {
+        var to = (el.statsEmailInput.value || '').trim();
+        if (!to) {
+          showToast('Enter recipient email first', true);
+          return;
+        }
+        var statsEmailLabel = el.statsEmailBtn.textContent;
+        try {
+          el.statsEmailBtn.textContent = 'Sending...';
+          el.statsEmailBtn.disabled = true;
+          var res = await callServer(
+            'apiEmailAttendanceStats',
+            state.statsFilterClass || '',
+            state.statsFromIso || '',
+            state.statsToIso || '',
+            to
+          );
+          showToast(res && res.message ? res.message : 'Attendance stats emailed');
+        } catch (err) {
+          showToast('Email failed: ' + err.message, true);
+        } finally {
+          el.statsEmailBtn.disabled = false;
+          el.statsEmailBtn.textContent = statsEmailLabel || 'Email Stats';
+        }
+      }
+
+      async function emailLateStats() {
+        var to = (el.lateEmailInput.value || '').trim();
+        if (!to) {
+          showToast('Enter recipient email first', true);
+          return;
+        }
+        var lateEmailLabel = el.lateEmailBtn.textContent;
+        try {
+          el.lateEmailBtn.textContent = 'Sending...';
+          el.lateEmailBtn.disabled = true;
+          var res = await callServer(
+            'apiEmailLateStats',
+            state.lateFromIso || '',
+            state.lateToIso || '',
+            state.lateFilterClass || '',
+            to
+          );
+          showToast(res && res.message ? res.message : 'Late stats emailed');
+        } catch (err) {
+          showToast('Email failed: ' + err.message, true);
+        } finally {
+          el.lateEmailBtn.disabled = false;
+          el.lateEmailBtn.textContent = lateEmailLabel || 'Email Stats';
+        }
+      }
+
+      function populateClasses() {
+        fillClassOptions(el.classSelect, true);
+        fillClassOptions(el.reviewClassSelect, false);
+      }
+
+      function fillClassOptions(selectEl, includeAll) {
+        selectEl.innerHTML = '';
+        if (includeAll) {
+          var allOpt = document.createElement('option');
+          allOpt.value = ALL_COMMUNITIES;
+          allOpt.textContent = 'All Communities';
+          selectEl.appendChild(allOpt);
+        }
+        state.classes.forEach(function(className) {
+          var opt = document.createElement('option');
+          opt.value = className;
+          opt.textContent = className;
+          selectEl.appendChild(opt);
+        });
+      }
+
+      function openAddGuestModal() {
+        el.addGuestClass.innerHTML = '';
+        state.classes.forEach(function(className) {
+          var opt = document.createElement('option');
+          opt.value = className;
+          opt.textContent = className;
+          el.addGuestClass.appendChild(opt);
+        });
+        if (state.reviewEventName) {
+          var event = state.registeredEvents.find(function(evt) {
+            return evt.eventName === state.reviewEventName && evt.dateIso === state.reviewEventDateIso;
+          });
+          if (event && event.communities.length) {
+            el.addGuestClass.value = event.communities[0];
+          }
+        } else if (state.selectedClass && state.classes.indexOf(state.selectedClass) !== -1) {
+          el.addGuestClass.value = state.selectedClass;
+        }
+        el.addGuestName.value = '';
+        el.addGuestOverlay.classList.add('show');
+        el.addGuestName.focus();
+      }
+
+      function closeAddGuestModal() {
+        el.addGuestOverlay.classList.remove('show');
+      }
+
+      // ===== FIXED: always reload roster if added class matches current view =====
+      async function submitAddGuest() {
+        var className = el.addGuestClass.value;
+        var name = el.addGuestName.value.trim();
+        if (!name) {
+          showToast('Please enter a student name', true);
+          return;
+        }
+        el.addGuestSaveBtn.disabled = true;
+        setLoading(true, 'Adding...');
+        try {
+          var res = await callServer('apiAddStudent', className, name);
+          if (res && res.ok) {
+            showToast(res.message);
+            closeAddGuestModal();
+            if (state.reviewEventName) {
+              var eventPayload = await callServer('apiGetEventRoster', state.reviewEventName, state.reviewEventDateIso);
+              if (eventPayload && eventPayload.ok) {
+                state.students = eventPayload.students || [];
+                state.studentSearch = '';
+                if (el.studentSearchInput) el.studentSearchInput.value = '';
+                renderStudents();
+              }
+            } else if (state.selectedClass === ALL_COMMUNITIES || state.selectedClass === res.className) {
+              await loadRoster();
+            }
+          } else {
+            showToast((res && res.message) || 'Failed to add student', true);
+          }
+        } catch (err) {
+          showToast('Failed to add student: ' + err.message, true);
+        } finally {
+          el.addGuestSaveBtn.disabled = false;
+          setLoading(false);
+        }
+      }
+
+      async function confirmRemoveStudent(name) {
+        var confirmed = window.confirm('Remove ' + name + ' from ' + state.selectedClass + '\'s roster? They can be re-added later, or reinstated in the Students sheet.');
+        if (!confirmed) return;
+
+        setLoading(true, 'Removing...');
+        try {
+          var res = await callServer('apiRemoveStudent', state.selectedClass, name);
+          if (res && res.ok) {
+            showToast(res.message);
+            await loadRoster();
+          } else {
+            showToast((res && res.message) || 'Failed to remove student', true);
+          }
+        } catch (err) {
+          showToast('Failed to remove student: ' + err.message, true);
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      function getFilteredStudents() {
+        var query = String(state.studentSearch || '').trim().toLowerCase();
+        if (!query) return state.students.slice();
+        return state.students.filter(function(student) {
+          return String(student.name || '').toLowerCase().indexOf(query) !== -1;
+        });
+      }
+
+      function renderStudents() {
+        el.studentList.innerHTML = '';
+
+        if (!state.students.length) {
+          el.emptyMsg.style.display = 'block';
+          if (el.searchResultHint) el.searchResultHint.textContent = '';
+          updateSummary();
+          updateMarkAllButton();
+          updateBottomBarHeight();
+          return;
+        }
+
+        el.emptyMsg.style.display = 'none';
+        var filteredStudents = getFilteredStudents();
+        var query = String(state.studentSearch || '').trim();
+
+        if (el.searchResultHint) {
+          if (query) {
+            el.searchResultHint.textContent = filteredStudents.length === 0
+              ? 'No matching names.'
+              : filteredStudents.length + ' matching ' + (filteredStudents.length === 1 ? 'name' : 'names') + '.';
+          } else {
+            el.searchResultHint.textContent = state.students.length + (state.selectedClass === ALL_COMMUNITIES ? ' people across all Communities.' : ' people in this Community.');
+          }
+        }
+
+        if (!filteredStudents.length) {
+          var noMatch = document.createElement('div');
+          noMatch.className = 'empty';
+          noMatch.textContent = 'No names match your search.';
+          el.studentList.appendChild(noMatch);
+          updateSummary();
+          updateMarkAllButton();
+          updateBottomBarHeight();
+          return;
+        }
+
+        filteredStudents.forEach(function(student) {
+          var idx = state.students.indexOf(student);
+          var row = document.createElement('div');
+          row.className = 'student-row';
+
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'pill';
+          renderPillLabel(btn, student);
+          applyPillStateClass(btn, student.status);
+
+          btn.addEventListener('click', function() {
+            state.students[idx].status = nextStatus(state.students[idx].status);
+            renderStudents();
+          });
+
+          var removeBtn = document.createElement('button');
+          removeBtn.type = 'button';
+          removeBtn.className = 'remove-student-btn';
+          removeBtn.setAttribute('aria-label', 'Remove ' + student.name);
+          removeBtn.textContent = '\u00d7';
+          removeBtn.addEventListener('click', function(evt) {
+            evt.stopPropagation();
+            confirmRemoveStudent(student.name);
+          });
+          if (state.selectedClass === ALL_COMMUNITIES) {
+            removeBtn.style.display = 'none';
+          }
+
+          row.appendChild(btn);
+          row.appendChild(removeBtn);
+          el.studentList.appendChild(row);
+        });
+
+        updateSummary();
+        updateMarkAllButton();
+        updateBottomBarHeight();
+      }
+
+      function formatStudentLabel(student) {
+        var sort = student && student.sortOrder;
+        if (sort === null || sort === undefined || sort === '' || !isFinite(Number(sort))) {
+          return student.name;
+        }
+        return String(sort) + '. ' + student.name;
+      }
+
+      function nextStatus(status) {
+        if (status === null || status === undefined || status === '') return 'P';
+        if (status === 1 || status === '1' || status === 'P') return 0;
+        if (status === 0 || status === '0') return 'L';
+        return null;
+      }
+
+      function applyPillStateClass(buttonEl, status) {
+        buttonEl.classList.remove('present', 'late', 'absent');
+        if (status === 1 || status === '1' || status === 'P') {
+          buttonEl.classList.add('present');
+        } else if (status === 'L') {
+          buttonEl.classList.add('late');
+        } else if (status === 0 || status === '0') {
+          buttonEl.classList.add('absent');
+        }
+      }
+
+      function statusText(status) {
+        if (status === 1 || status === '1' || status === 'P') return 'Present';
+        if (status === 'L') return 'Late';
+        if (status === 0 || status === '0') return 'Absent';
+        return 'Unmarked';
+      }
+
+      function renderPillLabel(buttonEl, student) {
+        buttonEl.innerHTML = '';
+        var name = document.createElement('span');
+        name.className = 'pill-name';
+        name.textContent = formatStudentLabel(student);
+        var status = document.createElement('span');
+        status.className = 'pill-status';
+        status.textContent = statusText(student && student.status);
+        buttonEl.appendChild(name);
+        buttonEl.appendChild(status);
+      }
+
+      function updateSummary() {
+        var present = 0;
+        var late = 0;
+        var absent = 0;
+        var unmarked = 0;
+
+        state.students.forEach(function(student) {
+          if (student.status === 1 || student.status === '1' || student.status === 'P') {
+            present++;
+          } else if (student.status === 'L') {
+            late++;
+          } else if (student.status === 0 || student.status === '0') {
+            absent++;
+          } else {
+            unmarked++;
+          }
+        });
+
+        el.summary.textContent = 'Present: ' + present + ' | Late: ' + late + ' | Absent: ' + absent + ' | Unmarked: ' + unmarked;
+        updateMarkAllButton();
+        updateBottomBarHeight();
+      }
+
+      function areAllPresent() {
+        if (!state.students.length) return false;
+        for (var i = 0; i < state.students.length; i++) {
+          var s = state.students[i].status;
+          if (!(s === 1 || s === '1' || s === 'P')) return false;
+        }
+        return true;
+      }
+
+      function updateMarkAllButton() {
+        if (!state.students.length) {
+          el.markAllBtn.textContent = 'Mark All Present';
+          el.markAllBtn.disabled = true;
+          el.clearAllBtn.disabled = true;
+          return;
+        }
+        el.markAllBtn.disabled = false;
+        el.clearAllBtn.disabled = false;
+        el.markAllBtn.textContent = 'Mark All Present';
+        updateBottomBarHeight();
+      }
+
+      function markOrClearAll() {
+        if (!state.students.length) return;
+        for (var i = 0; i < state.students.length; i++) {
+          state.students[i].status = 'P';
+        }
+        renderStudents();
+        showToast('All marked present');
+      }
+
+      function clearAllSelections() {
+        if (!state.students.length) return;
+        var ok = window.confirm('Clear all student selections?');
+        if (!ok) return;
+        for (var i = 0; i < state.students.length; i++) {
+          state.students[i].status = null;
+        }
+        renderStudents();
+        showToast('All cleared');
+      }
+
+      function buildAttendanceMap() {
+        var map = {};
+        state.students.forEach(function(student) {
+          if (student.status === 1 || student.status === '1' || student.status === 'P') {
+            map[student.name] = 'P';
+          } else if (student.status === 'L') {
+            map[student.name] = 'L';
+          } else if (student.status === 0 || student.status === '0') {
+            map[student.name] = 0;
+          } else {
+            map[student.name] = 0;
+          }
+        });
+        return map;
+      }
+
+      async function loadRoster() {
+        if (!state.selectedClass || !state.selectedDateIso) {
+          state.students = [];
+          renderStudents();
+          return;
+        }
+
+        el.saveBtn.disabled = true;
+        setLoading(true, 'Loading...');
+        try {
+          var payload;
+          if (state.selectedClass === ALL_COMMUNITIES) {
+            payload = await callServer('apiGetAllRoster', state.selectedDateIso);
+          } else {
+            payload = await callServer('apiGetClassRoster', state.selectedClass, state.selectedDateIso);
+          }
+          state.students = payload.students || [];
+          state.studentSearch = '';
+          if (el.studentSearchInput) el.studentSearchInput.value = '';
+          el.eventNameInput.value = payload.eventName || '';
+          if (!state.reviewEventName) {
+            if (el.eventStartTimeInput) el.eventStartTimeInput.value = '';
+            if (el.eventEndTimeInput) el.eventEndTimeInput.value = '';
+          }
+          renderStudents();
+        } catch (err) {
+          state.students = [];
+          renderStudents();
+          showToast('Failed to load roster', true);
+        } finally {
+          el.saveBtn.disabled = false;
+          setLoading(false);
+        }
+      }
+
+      async function saveAttendance() {
+        if (!state.selectedClass || !state.selectedDateIso) {
+          showToast('Select Community and Date first', true);
+          return;
+        }
+
+        var saveLabel = el.saveBtn.textContent;
+        el.saveBtn.textContent = 'Saving...';
+        el.saveBtn.disabled = true;
+        try {
+          var eventName = el.eventNameInput.value.trim();
+          var startTime = el.eventStartTimeInput ? el.eventStartTimeInput.value : '';
+          var endTime = el.eventEndTimeInput ? el.eventEndTimeInput.value : '';
+          if (!eventName) throw new Error('Enter the Event Name first');
+          if (!startTime || !endTime) throw new Error('Enter the event Start Time and End Time first');
+          if (endTime <= startTime) throw new Error('End Time must be later than Start Time');
+          var res;
+          if (state.reviewEventName) {
+            var eventEntries = state.students.map(function(student) {
+              return {
+                className: student.className,
+                name: student.name,
+                status: (student.status === 1 || student.status === '1' || student.status === 'P') ? 'P' :
+                  (student.status === 'L' ? 'L' : 0)
+              };
+            });
+            res = await callServer('apiSaveEventAttendance', state.reviewEventName, state.reviewEventDateIso, eventEntries, startTime, endTime);
+          } else if (state.selectedClass === ALL_COMMUNITIES) {
+            var entries = state.students.map(function(student) {
+              return {
+                className: student.className,
+                name: student.name,
+                status: (student.status === 1 || student.status === '1' || student.status === 'P') ? 'P' :
+                  (student.status === 'L' ? 'L' : 0)
+              };
+            });
+            res = await callServer('apiSaveAllAttendance', state.selectedDateIso, entries, eventName, startTime, endTime);
+          } else {
+            var map = buildAttendanceMap();
+            res = await callServer('apiSaveAttendance', state.selectedClass, state.selectedDateIso, map, eventName, startTime, endTime);
+          }
+          await refreshStatsAfterSave();
+          showToast(res && res.message ? res.message : 'Saved');
+        } catch (err) {
+          showToast('Save failed: ' + err.message, true);
+        } finally {
+          el.saveBtn.disabled = false;
+          el.saveBtn.textContent = saveLabel || 'Save';
+        }
+      }
+
+
+      async function openQrModal() {
+        var eventName = el.eventNameInput ? el.eventNameInput.value.trim() : '';
+        var isoDate = state.selectedDateIso || (el.dateInput ? el.dateInput.value : '');
+        var startTime = el.eventStartTimeInput ? el.eventStartTimeInput.value : '';
+        var endTime = el.eventEndTimeInput ? el.eventEndTimeInput.value : '';
+
+        if (!eventName) {
+          showToast('Enter the Event Name first', true);
+          return;
+        }
+        if (!isoDate) {
+          showToast('Select the event date first', true);
+          return;
+        }
+        if (!startTime || !endTime) {
+          showToast('Enter the Event Start Time and End Time first', true);
+          return;
+        }
+        if (endTime <= startTime) {
+          showToast('End Time must be later than Start Time', true);
+          return;
+        }
+
+        /*
+         * IMPORTANT:
+         * Apps Script HTML runs inside a sandboxed iframe. Navigating
+         * window.location from the iframe can leave the browser on
+         * script.google.com and only change the content inside the app.
+         *
+         * Open a blank tab immediately while the button click still has
+         * user activation. After Apps Script creates the short-lived
+         * scanning session, navigate that tab to the GitHub Pages scanner.
+         */
+        var scannerWindow = window.open('about:blank', '_blank');
+
+        if (!scannerWindow) {
+          showToast('Please allow pop-ups for this Attendance App, then tap Scan Attendance again.', true);
+          return;
+        }
+
+        try {
+          scannerWindow.document.title = 'Opening RLCC QR Scanner...';
+          scannerWindow.document.body.innerHTML =
+            '<div style="font-family:Arial,sans-serif;padding:30px;text-align:center;">' +
+            '<h2>Opening RLCC QR Scanner…</h2>' +
+            '<p>Please wait.</p>' +
+            '</div>';
+
+          showToast('Opening QR scanner...');
+
+          var session = await callServer(
+            'apiCreateExternalQrSession',
+            eventName,
+            isoDate,
+            startTime,
+            endTime
+          );
+
+          if (!session || !session.ok || !session.scannerUrl) {
+            throw new Error('Could not create the QR scanning session.');
+          }
+
+          scannerWindow.location.href = session.scannerUrl;
+          scannerWindow.focus();
+        } catch (err) {
+          try { scannerWindow.close(); } catch (ignore) {}
+          showToast(
+            'Could not open QR scanner: ' +
+            (err && err.message ? err.message : err),
+            true
+          );
+        }
+      }
+
+      function closeQrModal() {
+        stopQrScanner();
+        el.qrOverlay.classList.remove('show');
+      }
+
+      function openMemberQrCodes() {
+        el.qrOverlay.classList.add('show');
+        setQrMode('codes', false);
+        loadQrCodes();
+      }
+
+      function setQrMode(mode, startCamera) {
+        var scan = mode === 'scan';
+        el.qrScannerMode.classList.toggle('active', scan);
+        el.qrCodesMode.classList.toggle('active', !scan);
+        if (scan) {
+          if (el.qrScannerStatus) el.qrScannerStatus.textContent = 'Select the event and date above, then tap “Scan Attendance” to start the camera.';
+          if (startCamera !== false) startQrScanner();
+        } else {
+          stopQrScanner();
+        }
+      }
+
+      function updateQrCheckinCount() {
+        var count = Object.keys(state.qrCheckedIn || {}).length;
+        el.qrCheckinCount.textContent = 'Checked in: ' + count;
+      }
+
+      async function handleQrScan(decodedText) {
+        if (!decodedText || state.qrScannerBusy) return;
+        var raw = String(decodedText).trim();
+        var qrId = raw.indexOf('RLCCATT:') === 0 ? raw.substring(8).trim() : raw;
+        if (!qrId) return;
+        state.qrScannerBusy = true;
+        try {
+          if (!state.selectedDateIso) throw new Error('Please select the event date first.');
+          var eventName = el.eventNameInput.value.trim();
+          var startTime = el.eventStartTimeInput ? el.eventStartTimeInput.value : '';
+          var endTime = el.eventEndTimeInput ? el.eventEndTimeInput.value : '';
+          if (!eventName) throw new Error('Please enter the Event Name before scanning.');
+          if (!startTime || !endTime) throw new Error('Please enter the event Start Time and End Time before scanning.');
+          if (endTime <= startTime) throw new Error('End Time must be later than Start Time.');
+          el.qrScannerStatus.textContent = 'Checking in…';
+          var result = await callServer('apiRecordQrAttendance', qrId, state.selectedDateIso, eventName, 'P', startTime, endTime);
+          state.qrCheckedIn[result.name + '|' + result.className] = true;
+          el.qrScannerStatus.textContent = (result.already ? 'ℹ ' : '✓ ') + result.message + ' — ' + result.className;
+          updateQrCheckinCount();
+          syncScannedMemberOnScreen(result);
+        } catch (err) {
+          el.qrScannerStatus.textContent = '⚠ ' + (err && err.message ? err.message : err);
+        } finally {
+          setTimeout(function(){ state.qrScannerBusy = false; }, 700);
+        }
+      }
+
+      // Show a scanned member as present in the list on screen, so the list matches
+      // the sheet and pressing Save afterwards does not undo the check-in.
+      function syncScannedMemberOnScreen(result) {
+        if (!result || !result.name) return;
+        var changed = false;
+        state.students.forEach(function(student) {
+          if (student.name !== result.name) return;
+          if (student.className) {
+            if (student.className !== result.className) return;
+          } else if (state.selectedClass && state.selectedClass !== ALL_COMMUNITIES && state.selectedClass !== result.className) {
+            return;
+          }
+          var s = student.status;
+          if (s === 'P' || s === 'L' || s === 1 || s === '1') return;
+          student.status = result.status === 'L' ? 'L' : 'P';
+          changed = true;
+        });
+        if (changed) renderStudents();
+      }
+
+      function startQrScanner() {
+        if (state.qrScannerRunning || state.qrScannerStarting) return;
+        state.qrScannerStarting = true;
+        if (!el.qrReader) { state.qrScannerStarting = false; return; }
+        if (!window.Html5QrcodeScanner) {
+          el.qrScannerStatus.textContent = '⚠ QR scanner library is unavailable. Please reload the app.';
+          state.qrScannerStarting = false;
+          return;
+        }
+        if (!state.selectedDateIso) {
+          el.qrScannerStatus.textContent = '⚠ Please select the event date first.';
+          state.qrScannerStarting = false;
+          return;
+        }
+        if (!el.eventNameInput.value.trim()) {
+          el.qrScannerStatus.textContent = '⚠ Please enter the Event Name first.';
+          state.qrScannerStarting = false;
+          return;
+        }
+        if (!el.eventStartTimeInput || !el.eventStartTimeInput.value || !el.eventEndTimeInput || !el.eventEndTimeInput.value) {
+          el.qrScannerStatus.textContent = '⚠ Please enter the event Start Time and End Time first.';
+          state.qrScannerStarting = false;
+          return;
+        }
+        if (el.eventEndTimeInput.value <= el.eventStartTimeInput.value) {
+          el.qrScannerStatus.textContent = '⚠ End Time must be later than Start Time.';
+          state.qrScannerStarting = false;
+          return;
+        }
+
+        try {
+          el.qrReader.innerHTML = '';
+          state.qrScanner = new Html5QrcodeScanner(
+            'qrReader',
+            { fps: 10, qrbox: 250, rememberLastUsedCamera: true, showTorchButtonIfSupported: true },
+            false
+          );
+          state.qrScanner.render(
+            function(decodedText) { handleQrScan(decodedText); },
+            function() {}
+          );
+          state.qrScannerRunning = true;
+          state.qrScannerStarting = false;
+          el.qrScannerStatus.textContent = 'Scanner ready. Allow camera access if your browser asks, then point the camera at a member QR code.';
+        } catch (err) {
+          state.qrScannerRunning = false;
+          state.qrScannerStarting = false;
+          el.qrScannerStatus.textContent = '⚠ Camera could not start. ' + (err && err.message ? err.message : err);
+        }
+      }
+
+      async function stopQrScanner() {
+        try {
+          if (state.qrScanner && typeof state.qrScanner.clear === 'function') {
+            await state.qrScanner.clear();
+          }
+        } catch (e) {}
+        state.qrScannerRunning = false;
+        state.qrScannerStarting = false;
+        state.qrScannerControls = null;
+        state.qrScanner = null;
+        if (el.qrReader) el.qrReader.innerHTML = '';
+      }
+
+      async function loadQrCodes() {
+        el.qrLoadCodesBtn.disabled = true;
+        el.qrCodesStatus.textContent = 'Loading active members…';
+        try {
+          var members = await callServer('apiGetQrMembers');
+          state.qrMembers = Array.isArray(members) ? members : [];
+          populateQrCommunityFilter();
+          renderQrCodes();
+          el.qrCodesStatus.textContent = state.qrMembers.length + ' active member QR codes ready.';
+        } catch (err) {
+          el.qrCodesStatus.textContent = 'Failed to load member QR codes: ' + (err && err.message ? err.message : err);
+        } finally {
+          el.qrLoadCodesBtn.disabled = false;
+        }
+      }
+
+      function getFilteredQrMembers() {
+        var community = String(el.qrCommunityFilter.value || '').trim().toLowerCase();
+        var search = String(el.qrMemberSearch.value || '').trim().toLowerCase();
+        return state.qrMembers.filter(function(member) {
+          var okCommunity = !community || String(member.className || '').trim().toLowerCase() === community;
+          var okSearch = !search || String(member.name || '').toLowerCase().indexOf(search) !== -1;
+          return okCommunity && okSearch;
+        });
+      }
+
+      function populateQrCommunityFilter() {
+        var current = el.qrCommunityFilter.value;
+        var communities = {};
+        state.qrMembers.forEach(function(member) {
+          var c = String(member.className || '').trim();
+          if (c) communities[c] = true;
+        });
+        var names = Object.keys(communities).sort(function(a,b){ return a.localeCompare(b); });
+        el.qrCommunityFilter.innerHTML = '<option value="">All Communities</option>';
+        names.forEach(function(name) {
+          var opt = document.createElement('option');
+          opt.value = name;
+          opt.textContent = name;
+          el.qrCommunityFilter.appendChild(opt);
+        });
+        if (names.indexOf(current) !== -1) el.qrCommunityFilter.value = current;
+      }
+
+      function renderQrCodes() {
+        var members = getFilteredQrMembers();
+        el.qrGrid.innerHTML = '';
+        el.qrFilteredCount.textContent = members.length + ' member' + (members.length === 1 ? '' : 's') + ' shown.';
+        members.forEach(function(member, index) {
+          var card = document.createElement('div');
+          card.className = 'qr-card';
+          var image = document.createElement('div');
+          image.className = 'qr-image';
+          image.id = 'memberQr_' + index;
+          var name = document.createElement('div');
+          name.className = 'qr-name';
+          name.textContent = member.name;
+          var community = document.createElement('div');
+          community.className = 'qr-community';
+          community.textContent = member.className;
+          var actions = document.createElement('div');
+          actions.className = 'qr-card-actions';
+          var viewBtn = document.createElement('button');
+          viewBtn.type = 'button'; viewBtn.textContent = 'Open';
+          viewBtn.addEventListener('click', function(){ showQrMemberDetail(member); });
+          var downloadBtn = document.createElement('button');
+          downloadBtn.type = 'button'; downloadBtn.className = 'secondary'; downloadBtn.textContent = 'Download';
+          downloadBtn.addEventListener('click', function(){ downloadMemberQr(member); });
+          var shareBtn = document.createElement('button');
+          shareBtn.type = 'button'; shareBtn.className = 'secondary'; shareBtn.textContent = 'Send';
+          shareBtn.addEventListener('click', function(){ shareMemberQr(member); });
+          actions.appendChild(viewBtn); actions.appendChild(downloadBtn); actions.appendChild(shareBtn);
+          card.appendChild(image); card.appendChild(name); card.appendChild(community); card.appendChild(actions);
+          el.qrGrid.appendChild(card);
+          if (window.QRCode) {
+            new QRCode(image, { text: 'RLCCATT:' + member.qrId, width: 128, height: 128, correctLevel: QRCode.CorrectLevel.M });
+          }
+        });
+      }
+
+      function buildMemberQrElement(member, size) {
+        var holder = document.createElement('div');
+        holder.style.position = 'absolute'; holder.style.left = '-10000px'; holder.style.top = '0';
+        document.body.appendChild(holder);
+        new QRCode(holder, { text: 'RLCCATT:' + member.qrId, width: size || 320, height: size || 320, correctLevel: QRCode.CorrectLevel.M });
+        return holder;
+      }
+
+      function qrHolderToBlob(holder) {
+        return new Promise(function(resolve, reject) {
+          var canvas = holder.querySelector('canvas');
+          var img = holder.querySelector('img');
+          if (canvas) canvas.toBlob(resolve, 'image/png');
+          else if (img && img.src) fetch(img.src).then(function(r){ return r.blob(); }).then(resolve).catch(reject);
+          else reject(new Error('QR image could not be created.'));
+        });
+      }
+
+      function downloadMemberQr(member) {
+        var holder = buildMemberQrElement(member, 500);
+        setTimeout(function(){
+          qrHolderToBlob(holder).then(function(blob){
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url; a.download = member.name.replace(/[^a-z0-9]+/gi,'_') + '_QR.png';
+            document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); holder.remove();
+          }).catch(function(){ holder.remove(); alert('Unable to create the QR image.'); });
+        }, 50);
+      }
+
+      async function shareMemberQr(member) {
+        var holder = buildMemberQrElement(member, 700);
+        try {
+          await new Promise(function(resolve){ setTimeout(resolve, 80); });
+          var blob = await qrHolderToBlob(holder);
+          var file = new File([blob], member.name.replace(/[^a-z0-9]+/gi,'_') + '_QR.png', {type:'image/png'});
+          if (navigator.share && (!navigator.canShare || navigator.canShare({files:[file]}))) {
+            await navigator.share({title: member.name + ' - RLCC QR Code', text: 'Your RLCC attendance QR code.', files:[file]});
+          } else {
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a'); a.href = url; a.download = file.name;
+            document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+            alert('Your device/browser does not support direct sharing. The QR image was downloaded so you can send it to the member.');
+          }
+        } catch (err) {
+          if (err && err.name !== 'AbortError') alert('Unable to share this QR code. You can use Download instead.');
+        } finally { holder.remove(); }
+      }
+
+      function showQrMemberDetail(member) {
+        el.qrMemberDetail.hidden = false;
+        el.qrMemberDetail.innerHTML = '';
+        var title = document.createElement('div'); title.className='qr-detail-name'; title.textContent=member.name;
+        var sub = document.createElement('div'); sub.className='qr-community'; sub.textContent=member.className;
+        var image = document.createElement('div'); image.className='qr-detail-image';
+        var actions = document.createElement('div'); actions.className='qr-card-actions';
+        var download=document.createElement('button'); download.type='button'; download.textContent='Download QR Image'; download.addEventListener('click',function(){downloadMemberQr(member);});
+        var print=document.createElement('button'); print.type='button'; print.className='secondary'; print.textContent='Print QR Card'; print.addEventListener('click',function(){printSingleQr(member);});
+        var share=document.createElement('button'); share.type='button'; share.className='secondary'; share.textContent='Send to Member'; share.addEventListener('click',function(){shareMemberQr(member);});
+        var close=document.createElement('button'); close.type='button'; close.className='secondary'; close.textContent='Close'; close.addEventListener('click',function(){el.qrMemberDetail.hidden=true;});
+        actions.appendChild(download);actions.appendChild(print);actions.appendChild(share);actions.appendChild(close);
+        el.qrMemberDetail.appendChild(title);el.qrMemberDetail.appendChild(sub);el.qrMemberDetail.appendChild(image);el.qrMemberDetail.appendChild(actions);
+        new QRCode(image,{text:'RLCCATT:'+member.qrId,width:260,height:260,correctLevel:QRCode.CorrectLevel.M});
+        el.qrMemberDetail.scrollIntoView({behavior:'smooth',block:'nearest'});
+      }
+
+      function escapeHtml(value) {
+        return String(value == null ? '' : value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;').replace(/'/g,'&#39;');
+      }
+
+      function printSingleQr(member) {
+        var holder = buildMemberQrElement(member, 420);
+        setTimeout(function(){
+          try {
+            var canvas = holder.querySelector('canvas');
+            var img = holder.querySelector('img');
+            var src = canvas ? canvas.toDataURL('image/png') : (img ? img.src : '');
+            holder.remove();
+            if (!src) throw new Error('QR image could not be created.');
+            var w = window.open('', '_blank');
+            if (!w) { alert('Please allow pop-ups to print the QR card.'); return; }
+            w.document.write(
+              '<!doctype html><html><head><title>' + escapeHtml(member.name) + ' QR</title>' +
+              '<style>body{font-family:Arial;text-align:center;padding:30px}.card{display:inline-block;border:1px solid #ddd;border-radius:16px;padding:24px}img{width:320px;height:320px}.name{font-size:22px;font-weight:700;margin-top:14px}.community{color:#666;margin-top:4px}</style>' +
+              '</head><body><div class="card"><img src="' + src + '"><div class="name">' + escapeHtml(member.name) + '</div>' +
+              '<div class="community">' + escapeHtml(member.className) + '</div></div></body></html>'
+            );
+            w.document.close();
+            w.focus();
+            setTimeout(function(){ w.print(); }, 250);
+          } catch (err) {
+            try { holder.remove(); } catch (e) {}
+            alert('Unable to prepare the QR card for printing.');
+          }
+        }, 80);
+      }
+
+
+      async function bootstrap() {
+        el.saveBtn.disabled = true;
+        setLoading(true, 'Loading...');
+        try {
+          var data = await callServer('apiGetBootstrap');
+          state.settings = data.settings || state.settings;
+          state.classes = Array.isArray(data.classes) ? data.classes : [];
+
+          el.appTitle.textContent = state.settings.appTitle || 'Attendance';
+
+          state.selectedDateIso = data.todayIso || '';
+          el.dateInput.value = state.selectedDateIso;
+          applyStatsQuickRange('this_month');
+          applyLateQuickRange('this_month');
+
+          populateClasses();
+          if (state.classes.length > 0) {
+            var preferred = state.settings.defaultClass;
+            state.selectedClass = state.classes.indexOf(preferred) >= 0 ? preferred : state.classes[0];
+            el.classSelect.value = state.selectedClass;
+          } else {
+            state.selectedClass = '';
+          }
+
+          await loadRoster();
+          setView('attendance');
+        } catch (err) {
+          showToast('Failed to initialize app', true);
+        } finally {
+          el.saveBtn.disabled = false;
+          setLoading(false);
+        }
+      }
+
+      el.classSelect.addEventListener('change', function() {
+        state.reviewEventName = '';
+        state.reviewEventDateIso = '';
+        state.selectedClass = el.classSelect.value;
+        if (state.reviewMode) {
+          state.reviewMode = false;
+          updateReviewBanner();
+        }
+        loadRoster();
+      });
+
+      el.dateInput.addEventListener('change', function() {
+        state.reviewEventName = '';
+        state.reviewEventDateIso = '';
+        state.selectedDateIso = el.dateInput.value;
+        if (state.reviewMode) {
+          state.reviewMode = false;
+          updateReviewBanner();
+        }
+        loadRoster();
+      });
+
+      if (el.studentSearchInput) {
+        el.studentSearchInput.addEventListener('input', function() {
+          state.studentSearch = el.studentSearchInput.value || '';
+          renderStudents();
+        });
+      }
+
+      el.saveBtn.addEventListener('click', saveAttendance);
+      el.markAllBtn.addEventListener('click', markOrClearAll);
+      el.clearAllBtn.addEventListener('click', clearAllSelections);
+      el.homeToggleBtn.addEventListener('click', goHomeView);
+      el.statsToggleBtn.addEventListener('click', openStatsView);
+      el.reviewOpenBtn.addEventListener('click', openReviewSession);
+      el.reviewViewBtn.addEventListener('click', viewSessionSummary);
+      el.reviewPdfBtn.addEventListener('click', downloadCommunityPdf);
+      el.reviewEmailPdfBtn.addEventListener('click', emailCommunityPdf);
+      el.reviewRangeViewBtn.addEventListener('click', viewRangeSummary);
+      el.lateToggleBtn.addEventListener('click', openLateView);
+      el.qrToggleBtn.addEventListener('click', openQrModal);
+      el.qrCodesToggleBtn.addEventListener('click', openMemberQrCodes);
+      el.qrCloseBtn.addEventListener('click', closeQrModal);
+      el.qrScanModeBtn.addEventListener('click', function() { setQrMode('scan'); });
+      el.qrCodesModeBtn.addEventListener('click', function() { setQrMode('codes'); loadQrCodes(); });
+      el.qrLoadCodesBtn.addEventListener('click', loadQrCodes);
+      el.qrPrintBtn.addEventListener('click', function() {
+        if (!state.qrMembers.length) { loadQrCodes().then(function() { window.print(); }); } else { window.print(); }
+      });
+      if (el.qrTakePhotoBtn) el.qrTakePhotoBtn.addEventListener('click', function() {
+        if (!el.eventNameInput.value.trim()) { el.qrScannerStatus.textContent = '⚠ Please enter the Event Name first.'; return; }
+        if (!el.dateInput.value) { el.qrScannerStatus.textContent = '⚠ Please select the event date first.'; return; }
+        el.qrPhotoInput.click();
+      });
+      if (el.qrPhotoInput) el.qrPhotoInput.addEventListener('change', function() {
+        var file = this.files && this.files[0];
+        if (file) scanQrPhoto(file);
+      });
+      if (el.qrCommunityFilter) el.qrCommunityFilter.addEventListener('change', renderQrCodes);
+      if (el.qrMemberSearch) el.qrMemberSearch.addEventListener('input', renderQrCodes);
+      el.statsClassFilter.addEventListener('change', onStatsFilterChange);
+      el.reviewEventSelect.addEventListener('change', updateRegisteredEventHint);
+      el.reviewEventRefreshBtn.addEventListener('click', refreshRegisteredEvents);
+      el.reviewEventOpenBtn.addEventListener('click', openRegisteredEvent);
+      el.reviewEventViewBtn.addEventListener('click', viewRegisteredEvent);
+      el.reviewEventPdfBtn.addEventListener('click', downloadRegisteredEventPdf);
+      el.reviewEventEmailPdfBtn.addEventListener('click', emailRegisteredEventPdf);
+      el.statsFromDate.addEventListener('change', async function() {
+        state.statsFromIso = el.statsFromDate.value || '';
+        state.statsQuickRange = 'custom';
+        setStatsQuickRangeActive('custom');
+        await loadStatsDashboard(true);
+      });
+      el.statsToDate.addEventListener('change', async function() {
+        state.statsToIso = el.statsToDate.value || '';
+        state.statsQuickRange = 'custom';
+        setStatsQuickRangeActive('custom');
+        await loadStatsDashboard(true);
+      });
+      el.statsQuickRange.addEventListener('click', async function(evt) {
+        var btn = evt.target.closest('.range-btn');
+        if (!btn) return;
+        var key = btn.getAttribute('data-range');
+        applyStatsQuickRange(key);
+        await loadStatsDashboard(true);
+      });
+      el.statsClearFilterBtn.addEventListener('click', async function() {
+        state.statsFilterClass = '';
+        el.statsClassFilter.value = '';
+        applyStatsQuickRange('this_month');
+        await loadStatsDashboard(true);
+      });
+      el.statsEmailBtn.addEventListener('click', emailAttendanceStats);
+      el.lateClassFilter.addEventListener('change', async function() {
+        state.lateFilterClass = el.lateClassFilter.value || '';
+        await loadLateDashboard(true);
+      });
+      el.lateFromDate.addEventListener('change', async function() {
+        state.lateFromIso = el.lateFromDate.value || '';
+        state.lateQuickRange = 'custom';
+        setLateQuickRangeActive('custom');
+        await loadLateDashboard(true);
+      });
+      el.lateToDate.addEventListener('change', async function() {
+        state.lateToIso = el.lateToDate.value || '';
+        state.lateQuickRange = 'custom';
+        setLateQuickRangeActive('custom');
+        await loadLateDashboard(true);
+      });
+      el.lateQuickRange.addEventListener('click', async function(evt) {
+        var btn = evt.target.closest('.range-btn');
+        if (!btn) return;
+        var key = btn.getAttribute('data-range');
+        applyLateQuickRange(key);
+        await loadLateDashboard(true);
+      });
+      el.lateClearFilterBtn.addEventListener('click', async function() {
+        state.lateFilterClass = '';
+        el.lateClassFilter.value = '';
+        applyLateQuickRange('this_month');
+        await loadLateDashboard(true);
+      });
+      el.lateEmailBtn.addEventListener('click', emailLateStats);
+
+      el.addGuestBtn.addEventListener('click', openAddGuestModal);
+      el.addGuestCancelBtn.addEventListener('click', closeAddGuestModal);
+      el.addGuestSaveBtn.addEventListener('click', submitAddGuest);
+      el.addGuestOverlay.addEventListener('click', function(evt) {
+        if (evt.target === el.addGuestOverlay) closeAddGuestModal();
+      });
+      el.addGuestName.addEventListener('keydown', function(evt) {
+        if (evt.key === 'Enter') {
+          evt.preventDefault();
+          submitAddGuest();
+        }
+      });
+
+      applyMobileClass();
+      updateBottomBarHeight();
+      window.addEventListener('resize', applyMobileClass);
+      window.addEventListener('resize', updateMarkAllButton);
+      window.addEventListener('resize', updateBottomBarHeight);
+      bootstrap();
+    </script>
+  </body>
+</html>
