@@ -3136,6 +3136,34 @@
         el.addGuestOverlay.classList.remove('show');
       }
 
+      // ===== Keep unsaved work when the roster is refreshed (e.g., after adding a guest) =====
+      function snapshotUnsavedEntries() {
+        var marks = {};
+        state.students.forEach(function(s) {
+          marks[(s.className || '') + '||' + s.name] = s.status;
+        });
+        return {
+          marks: marks,
+          eventName: el.eventNameInput ? el.eventNameInput.value : '',
+          startTime: el.eventStartTimeInput ? el.eventStartTimeInput.value : '',
+          endTime: el.eventEndTimeInput ? el.eventEndTimeInput.value : ''
+        };
+      }
+
+      function restoreUnsavedEntries(snap) {
+        if (!snap) return;
+        state.students.forEach(function(s) {
+          var key = (s.className || '') + '||' + s.name;
+          if (Object.prototype.hasOwnProperty.call(snap.marks, key)) {
+            s.status = snap.marks[key];
+          }
+        });
+        if (snap.eventName && el.eventNameInput) el.eventNameInput.value = snap.eventName;
+        if (snap.startTime && el.eventStartTimeInput) el.eventStartTimeInput.value = snap.startTime;
+        if (snap.endTime && el.eventEndTimeInput) el.eventEndTimeInput.value = snap.endTime;
+        renderStudents();
+      }
+
       // ===== FIXED: always reload roster if added class matches current view =====
       async function submitAddGuest() {
         var className = el.addGuestClass.value;
@@ -3151,6 +3179,7 @@
           if (res && res.ok) {
             showToast(res.message);
             closeAddGuestModal();
+            var unsaved = snapshotUnsavedEntries();
             if (state.reviewEventName) {
               var eventPayload = await callServer('apiGetEventRoster', state.reviewEventName, state.reviewEventDateIso);
               if (eventPayload && eventPayload.ok) {
@@ -3158,9 +3187,11 @@
                 state.studentSearch = '';
                 if (el.studentSearchInput) el.studentSearchInput.value = '';
                 renderStudents();
+                restoreUnsavedEntries(unsaved);
               }
             } else if (state.selectedClass === ALL_COMMUNITIES || state.selectedClass === res.className) {
               await loadRoster();
+              restoreUnsavedEntries(unsaved);
             }
           } else {
             showToast((res && res.message) || 'Failed to add student', true);
